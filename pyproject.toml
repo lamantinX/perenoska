@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "perenositsa"
+version = "0.1.0"
+description = "MVP веб-сервиса переноса карточек товаров между Wildberries и Ozon."
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+  "cryptography>=45.0.0",
+  "fastapi>=0.116.0",
+  "httpx>=0.28.0",
+  "pydantic>=2.11.0",
+  "uvicorn[standard]>=0.35.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.4.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.setuptools.packages.find]
+include = ["app*"]

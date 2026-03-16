@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Perenositsa</title>
+    <link rel="stylesheet" href="/static/app.css?v=9" />
+  </head>
+  <body>
+    <div class="page-glow page-glow-left"></div>
+    <div class="page-glow page-glow-right"></div>
+
+    <main class="app-shell">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Perenositsa</p>
+          <h1>Перенос карточек между Wildberries и Ozon</h1>
+          <p class="hero-text">
+            Подключайте кабинеты, загружайте каталог, проверяйте маппинг атрибутов и запускайте перенос
+            карточек в одном минималистичном интерфейсе.
+          </p>
+        </div>
+        <div class="hero-status" id="sessionStatus">Не авторизован</div>
+      </section>
+
+      <section class="panel auth-panel" id="authPanel">
+        <div class="panel-head">
+          <div>
+            <p class="panel-kicker">Доступ</p>
+            <h2>Вход в сервис</h2>
+          </div>
+          <button class="ghost-button hidden" id="logoutButton" type="button">Выйти</button>
+        </div>
+
+        <div class="auth-grid">
+          <form class="form-card" id="registerForm">
+            <h3>Регистрация</h3>
+            <label>
+              <span>Email</span>
+              <input name="email" type="email" placeholder="seller@example.com" required />
+            </label>
+            <label>
+              <span>Пароль</span>
+              <input name="password" type="password" placeholder="Минимум 8 символов" required />
+            </label>
+            <button class="primary-button" type="submit">Создать аккаунт</button>
+          </form>
+
+          <form class="form-card" id="loginForm">
+            <h3>Вход</h3>
+            <label>
+              <span>Email</span>
+              <input name="email" type="email" placeholder="seller@example.com" required />
+            </label>
+            <label>
+              <span>Пароль</span>
+              <input name="password" type="password" placeholder="Ваш пароль" required />
+            </label>
+            <button class="secondary-button" type="submit">Войти</button>
+          </form>
+        </div>
+      </section>
+
+      <section class="workspace hidden" id="workspace">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="panel-kicker">Подключения</p>
+              <h2>Маркетплейсы</h2>
+            </div>
+            <button class="ghost-button" id="refreshConnectionsButton" type="button">Обновить</button>
+          </div>
+
+          <div class="cards-grid">
+            <article class="credential-card">
+              <div class="marketplace-line">
+                <h3>Wildberries</h3>
+                <span class="badge badge-neutral" id="wbConnectionBadge">Не подключен</span>
+              </div>
+              <form id="wbConnectionForm">
+                <label>
+                  <span>WB token</span>
+                  <input name="token" type="password" placeholder="Seller token" required />
+                </label>
+                <button class="primary-button" type="submit">Сохранить WB</button>
+              </form>
+              <div class="masked-value" id="wbMasked"></div>
+            </article>
+
+            <article class="credential-card">
+              <div class="marketplace-line">
+                <h3>Ozon</h3>
+                <span class="badge badge-neutral" id="ozonConnectionBadge">Не подключен</span>
+              </div>
+              <form id="ozonConnectionForm">
+                <label>
+                  <span>Seller ID / Client ID</span>
+                  <input name="client_id" type="text" placeholder="Client ID" required />
+                </label>
+                <label>
+                  <span>API key</span>
+                  <input name="api_key" type="password" placeholder="API key" required />
+                </label>
+                <button class="primary-button" type="submit">Сохранить Ozon</button>
+              </form>
+              <div class="masked-value" id="ozonMasked"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="panel-kicker">Каталог</p>
+              <h2>Выбор товаров</h2>
+            </div>
+            <div class="inline-actions">
+              <button class="ghost-button" id="loadCategoriesButton" type="button">Загрузить категории</button>
+              <button class="primary-button" id="loadProductsButton" type="button">Загрузить товары</button>
+            </div>
+          </div>
+
+          <div class="toolbar-grid">
+            <label>
+              <span>Источник</span>
+              <select id="sourceMarketplace">
+                <option value="wb">Wildberries</option>
+                <option value="ozon">Ozon</option>
+              </select>
+            </label>
+            <label>
+              <span>Приемник</span>
+              <select id="targetMarketplace">
+                <option value="ozon">Ozon</option>
+                <option value="wb">Wildberries</option>
+              </select>
+            </label>
+            <label>
+              <span>Целевая категория</span>
+              <select id="targetCategorySelect">
+                <option value="">Автовыбор</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="selection-bar">
+            <div id="catalogSummary">Товары еще не загружены.</div>
+            <div class="inline-actions">
+              <button class="ghost-button" id="previewButton" type="button">Предпросмотр</button>
+              <button class="primary-button" id="launchButton" type="button">Запустить перенос</button>
+            </div>
+          </div>
+
+          <div class="progress-panel hidden" id="previewProgressPanel" aria-live="polite">
+            <div class="progress-line">
+              <div class="progress-fill" id="previewProgressFill"></div>
+            </div>
+            <div class="progress-meta">
+              <span id="previewProgressText">Подготавливаю preview...</span>
+              <span id="previewProgressValue">0%</span>
+            </div>
+          </div>
+          <div class="product-grid" id="productGrid"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="panel-kicker">Preview</p>
+              <h2>Маппинг и готовность</h2>
+            </div>
+          </div>
+          <div class="preview-list" id="previewList">
+            <div class="empty-state">Сделайте preview, чтобы увидеть итоговые payload и обязательные поля.</div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="panel-kicker">Задачи</p>
+              <h2>История переносов</h2>
+            </div>
+            <button class="ghost-button" id="refreshJobsButton" type="button">Обновить задачи</button>
+          </div>
+          <div class="jobs-list" id="jobsList">
+            <div class="empty-state">Задач пока нет.</div>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <section class="modal hidden" id="productModal">
+      <div class="modal-backdrop" id="modalBackdrop"></div>
+      <div class="modal-card">
+        <div class="panel-head">
+          <div>
+            <p class="panel-kicker">Полная карточка</p>
+            <h2 id="modalTitle">Товар</h2>
+          </div>
+          <button class="ghost-button" id="closeModalButton" type="button">Закрыть</button>
+        </div>
+        <div class="modal-content" id="modalContent"></div>
+      </div>
+    </section>
+
+    <section class="modal hidden" id="imageModal">
+      <div class="modal-backdrop" id="imageModalBackdrop"></div>
+      <div class="modal-card image-modal-card">
+        <div class="panel-head">
+          <div>
+            <p class="panel-kicker">Изображение</p>
+            <h2>Просмотр фото</h2>
+          </div>
+          <button class="ghost-button" id="closeImageModalButton" type="button">Закрыть</button>
+        </div>
+        <img class="zoomed-image" id="zoomedImage" alt="Изображение товара" />
+      </div>
+    </section>
+
+    <aside class="toast hidden" id="toast"></aside>
+
+    <section class="modal hidden" id="previewCardModal">
+      <div class="modal-backdrop" id="previewCardBackdrop"></div>
+      <div class="modal-card">
+        <div class="panel-head">
+          <div>
+            <p class="panel-kicker">Preview карточки</p>
+            <h2 id="previewCardTitle">Карточка после переноса</h2>
+          </div>
+          <button class="ghost-button" id="closePreviewCardButton" type="button">Закрыть</button>
+        </div>
+        <div class="modal-content" id="previewCardContent"></div>
+      </div>
+    </section>
+
+    <script src="/static/app.js?v=14"></script>
+  </body>
+</html>
