@@ -1,72 +1,90 @@
-# Perenositsa
+# Perenoska
 
-Веб-сервис на FastAPI для переноса карточек товаров между Wildberries и Ozon с минималистичным интерфейсом.
+FastAPI-сервис для переноса карточек товаров между Wildberries, Ozon и Yandex Market с встроенным веб-интерфейсом.
 
-## Что уже реализовано
+## Что есть сейчас
 
-- регистрация и логин пользователя;
-- хранение подключений WB/Ozon в SQLite;
+- регистрация, логин и сессии пользователей;
+- хранение подключений WB/Ozon/Yandex Market в SQLite;
 - шифрование токенов и API-ключей перед записью в БД;
-- клиенты WB/Ozon с базовыми методами для товаров, категорий и импорта;
-- веб-интерфейс для авторизации, подключения маркетплейсов, выбора товаров, preview и просмотра задач;
-- предпросмотр переноса с попыткой авто-маппинга атрибутов;
-- запуск задачи переноса и отдельная синхронизация статуса;
-- тесты для аутентификации, подключений и сценария preview/import на фейковых клиентах.
+- клиенты WB/Ozon/Yandex Market для каталога, категорий и импорта;
+- встроенный SPA без отдельного frontend build-процесса;
+- preview переноса с авто-маппингом категорий, атрибутов и словарных значений;
+- запуск задач переноса и синхронизация статуса;
+- ручное сохранение category/dictionary mappings;
+- тесты для auth, connections, mappings и preview/import сценариев.
 
-## Принятые допущения
+## Структура проекта
 
-- интерфейс реализован как встроенный SPA без отдельного frontend build-процесса;
-- сложный маппинг атрибутов сделан эвристически по именам и базовым синонимам;
-- для реальной прод-эксплуатации нужно доработать очереди, retry, rate limiting, аудит, RBAC и полноценную категорийную матрицу;
-- часть ответов WB/Ozon обрабатывается в tolerant-режиме, потому что структуры могут отличаться между версиями API.
+- `app/` — приложение FastAPI, сервисы, API-роуты, клиенты маркетплейсов
+- `app/static/` — встроенный интерфейс
+- `tests/` — тесты на `pytest`
+- `docs/codex/` — локальная документация для работы через Codex
+- `main.md`, `mozg.md` — проектные заметки и справочный контекст
 
-## Запуск
+## Локальный запуск
 
-```bash
+```powershell
 python -m venv .venv
 .venv\Scripts\activate
 pip install -e .[dev]
-copy .env.example .env
-uvicorn app.main:app
+Copy-Item .env.example .env
+uvicorn app.main:app --reload
 ```
 
-Swagger UI будет доступен по адресу `http://127.0.0.1:8000/docs`.
+После запуска:
 
-## Веб-интерфейс
+- UI: `http://127.0.0.1:8000/`
+- Swagger: `http://127.0.0.1:8000/docs`
 
-- основной интерфейс: `http://127.0.0.1:8000/`
-- Swagger UI: `http://127.0.0.1:8000/docs`
+## Проверка
 
-В интерфейсе доступны:
+```powershell
+python -m pytest
+```
 
-- регистрация и вход;
-- сохранение ключей WB и Ozon;
-- загрузка каталога из WB или Ozon;
-- выбор карточек для переноса;
-- загрузка категорий приемника;
-- preview итогового payload;
-- запуск переноса и просмотр истории задач.
+Или:
 
-## Основные endpoints
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/verify.ps1
+```
+
+## Основные API endpoints
 
 - `POST /api/v1/auth/register`
 - `POST /api/v1/auth/login`
 - `GET /api/v1/auth/me`
 - `GET /api/v1/connections`
 - `PUT /api/v1/connections/{marketplace}`
-- `GET /api/v1/catalog/products?marketplace=wb`
-- `GET /api/v1/catalog/categories?marketplace=ozon`
-- `GET /api/v1/catalog/categories/{category_id}/attributes?marketplace=ozon`
+- `GET /api/v1/catalog/products?marketplace=...`
+- `GET /api/v1/catalog/products/{product_id}?marketplace=...`
+- `GET /api/v1/catalog/categories?marketplace=...`
+- `GET /api/v1/catalog/categories/{category_id}/attributes?marketplace=...`
+- `POST /api/v1/mappings/categories`
+- `POST /api/v1/mappings/dictionary`
 - `POST /api/v1/transfers/preview`
 - `POST /api/v1/transfers`
 - `GET /api/v1/transfers`
 - `GET /api/v1/transfers/{job_id}`
 - `POST /api/v1/transfers/{job_id}/sync`
 
-## Что логично делать следующим шагом
+## Ограничения MVP
 
-- добавить Celery/RQ или другой background worker;
-- вынести таблицу соответствия категорий в отдельную сущность;
-- добавить загрузку медиа на свой CDN/storage;
-- сохранить историю ручных корректировок маппинга для повторного использования;
-- закрыть интеграционные тесты через sandbox-кабинеты WB и Ozon.
+- маппинг атрибутов местами эвристический;
+- нет очередей, retry-механик и rate limiting;
+- нет полноценной категорийной матрицы и UI для истории ручных сопоставлений;
+- интеграционные тесты с реальными sandbox-кабинетами пока не настроены.
+
+## Git
+
+Локальный `origin` для этого репозитория должен указывать на форк:
+
+- `https://github.com/lamantinX/perenoska`
+
+## Для Codex
+
+Стартовая точка для новой сессии:
+
+1. открыть `AGENTS.md`;
+2. при необходимости прочитать `docs/codex/project-overview.md`;
+3. использовать `docs/codex/file-map.md` и `docs/codex/workflow.md` для навигации и проверки изменений.
