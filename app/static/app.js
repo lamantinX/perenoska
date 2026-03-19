@@ -18,6 +18,10 @@ const state = {
   previewProgressValue: 0,
   previewProgressText: "",
   previewProgressTimer: null,
+  brandMappingSelections: {},
+  brandMappingSearch: {},
+  categoryMappingSelections: {},
+  categoryMappingSearch: {},
 };
 
 const elements = {
@@ -29,10 +33,13 @@ const elements = {
   loginForm: document.getElementById("loginForm"),
   wbConnectionForm: document.getElementById("wbConnectionForm"),
   ozonConnectionForm: document.getElementById("ozonConnectionForm"),
+  yandexMarketConnectionForm: document.getElementById("yandexMarketConnectionForm"),
   wbConnectionBadge: document.getElementById("wbConnectionBadge"),
   ozonConnectionBadge: document.getElementById("ozonConnectionBadge"),
+  yandexMarketConnectionBadge: document.getElementById("yandexMarketConnectionBadge"),
   wbMasked: document.getElementById("wbMasked"),
   ozonMasked: document.getElementById("ozonMasked"),
+  yandexMarketMasked: document.getElementById("yandexMarketMasked"),
   refreshConnectionsButton: document.getElementById("refreshConnectionsButton"),
   sourceMarketplace: document.getElementById("sourceMarketplace"),
   targetMarketplace: document.getElementById("targetMarketplace"),
@@ -48,6 +55,8 @@ const elements = {
   refreshJobsButton: document.getElementById("refreshJobsButton"),
   productGrid: document.getElementById("productGrid"),
   previewList: document.getElementById("previewList"),
+  categoryMappingButton: document.getElementById("categoryMappingButton"),
+  brandMappingButton: document.getElementById("brandMappingButton"),
   jobsList: document.getElementById("jobsList"),
   catalogSummary: document.getElementById("catalogSummary"),
   productModal: document.getElementById("productModal"),
@@ -60,6 +69,16 @@ const elements = {
   closePreviewCardButton: document.getElementById("closePreviewCardButton"),
   previewCardTitle: document.getElementById("previewCardTitle"),
   previewCardContent: document.getElementById("previewCardContent"),
+  categoryMappingModal: document.getElementById("categoryMappingModal"),
+  categoryMappingBackdrop: document.getElementById("categoryMappingBackdrop"),
+  closeCategoryMappingButton: document.getElementById("closeCategoryMappingButton"),
+  categoryMappingTitle: document.getElementById("categoryMappingTitle"),
+  categoryMappingContent: document.getElementById("categoryMappingContent"),
+  brandMappingModal: document.getElementById("brandMappingModal"),
+  brandMappingBackdrop: document.getElementById("brandMappingBackdrop"),
+  closeBrandMappingButton: document.getElementById("closeBrandMappingButton"),
+  brandMappingTitle: document.getElementById("brandMappingTitle"),
+  brandMappingContent: document.getElementById("brandMappingContent"),
   imageModal: document.getElementById("imageModal"),
   imageModalBackdrop: document.getElementById("imageModalBackdrop"),
   closeImageModalButton: document.getElementById("closeImageModalButton"),
@@ -109,6 +128,10 @@ function clearAuth() {
   state.preview = null;
   state.jobs = [];
   state.productOverrides = {};
+  state.brandMappingSelections = {};
+  state.brandMappingSearch = {};
+  state.categoryMappingSelections = {};
+  state.categoryMappingSearch = {};
   localStorage.removeItem("perenositsa.token");
   renderSession();
   renderProducts();
@@ -185,15 +208,21 @@ function connectionBadge(connection) {
 function renderConnections(connections) {
   const wb = connections.find((item) => item.marketplace === "wb");
   const ozon = connections.find((item) => item.marketplace === "ozon");
+  const yandexMarket = connections.find((item) => item.marketplace === "yandex_market");
   const wbBadge = connectionBadge(wb);
   const ozonBadge = connectionBadge(ozon);
+  const yandexMarketBadge = connectionBadge(yandexMarket);
+  const maskedText = (connection) => Object.values(connection?.masked_fields || {}).filter(Boolean).join(" · ");
 
   elements.wbConnectionBadge.textContent = wbBadge.text;
   elements.wbConnectionBadge.className = wbBadge.className;
   elements.ozonConnectionBadge.textContent = ozonBadge.text;
   elements.ozonConnectionBadge.className = ozonBadge.className;
-  elements.wbMasked.textContent = "";
-  elements.ozonMasked.textContent = "";
+  elements.yandexMarketConnectionBadge.textContent = yandexMarketBadge.text;
+  elements.yandexMarketConnectionBadge.className = yandexMarketBadge.className;
+  elements.wbMasked.textContent = maskedText(wb);
+  elements.ozonMasked.textContent = maskedText(ozon);
+  elements.yandexMarketMasked.textContent = maskedText(yandexMarket);
 }
 
 function renderProducts() {
@@ -310,19 +339,29 @@ function renderProducts() {
 
 function renderPreview() {
   if (!state.preview?.items?.length) {
+    elements.categoryMappingButton.classList.add("hidden");
+    elements.brandMappingButton.classList.add("hidden");
     elements.previewList.innerHTML =
       '<div class="empty-state">Сделайте preview, чтобы увидеть итоговые payload и обязательные поля.</div>';
     return;
   }
+
+  const categoryIssues = previewCategoryIssues();
+  elements.categoryMappingButton.classList.toggle("hidden", categoryIssues.length === 0);
+  elements.brandMappingButton.classList.remove("hidden");
 
   elements.previewList.innerHTML = state.preview.items
     .map((item) => {
       const missing = item.missing_required_attributes || [];
       const missingCritical = item.missing_critical_fields || [];
       const warnings = item.warnings || [];
+      const dictionaryIssues = item.dictionary_issues || [];
+      const readiness = previewReadinessMeta(item);
+      const summary = previewIssueSummary(item);
       const tags = [
         ...missing.map((value) => `<span class="tag danger">${escapeHtml(value)}</span>`),
         ...missingCritical.map((value) => `<span class="tag danger">critical: ${escapeHtml(value)}</span>`),
+        ...dictionaryIssues.map((issue) => `<span class="tag warning">${escapeHtml(issue.target_attribute_name || issue.type || "mapping")}</span>`),
         ...warnings.map((value) => `<span class="tag warning">${escapeHtml(value)}</span>`),
       ].join("");
 
@@ -348,19 +387,443 @@ function renderPreview() {
     })
     .join("");
 
+  Array.from(elements.previewList.querySelectorAll(".preview-card")).forEach((card, index) => {
+    const item = state.preview.items[index];
+    if (!item) return;
+    const readiness = previewReadinessMeta(item);
+    const summary = previewIssueSummary(item);
+    const badge = card.querySelector(".badge");
+    if (badge) {
+      badge.className = `badge ${readiness.className}`;
+      badge.textContent = readiness.label;
+    }
+    if (summary.length) {
+      const summaryNode = document.createElement("div");
+      summaryNode.className = "preview-summary-list";
+      summaryNode.innerHTML = summary.map((value) => `<div class="preview-summary-item">${escapeHtml(value)}</div>`).join("");
+      const tagsNode = card.querySelector(".tag-list");
+      if (tagsNode) {
+        card.insertBefore(summaryNode, tagsNode);
+      } else {
+        const payloadNode = card.querySelector("pre");
+        card.insertBefore(summaryNode, payloadNode || null);
+      }
+    }
+  });
+
   elements.previewList.querySelectorAll("[data-open-preview-card]").forEach((button) => {
     button.addEventListener("click", () => openPreviewCardModal(button.dataset.openPreviewCard));
   });
+}
+
+function brandDictionaryIssues() {
+  return (state.preview?.dictionary_issues || []).filter((issue) => issue.type === "brand");
+}
+
+function previewBrandMappings() {
+  return state.preview?.brand_mappings || [];
+}
+
+function previewCategoryIssues() {
+  return state.preview?.category_issues || [];
+}
+
+function categoryIssueKey(issue) {
+  return issue.source_key;
+}
+
+function openCategoryMappingModal() {
+  if (!previewCategoryIssues().length) {
+    showToast("Для текущего preview нет несопоставленных категорий.", true);
+    return;
+  }
+  elements.categoryMappingModal.classList.remove("hidden");
+  renderCategoryMappingModal();
+}
+
+function closeCategoryMappingModal() {
+  elements.categoryMappingModal.classList.add("hidden");
+}
+
+function filteredCategoryOptions(issue) {
+  const search = (state.categoryMappingSearch[categoryIssueKey(issue)] || "").trim().toLowerCase();
+  const options = issue.options || [];
+  if (!search) {
+    return options;
+  }
+  return options.filter((item) => `${item.path || ""} ${item.label || ""}`.toLowerCase().includes(search));
+}
+
+function categorySelection(issue) {
+  return state.categoryMappingSelections[categoryIssueKey(issue)] || { targetKey: "", typeId: "" };
+}
+
+function renderCategoryMappingModal() {
+  const issues = previewCategoryIssues();
+  elements.categoryMappingTitle.textContent = `Сопоставление категорий (${issues.length})`;
+  if (!issues.length) {
+    elements.categoryMappingContent.innerHTML = '<div class="empty-state">Все категории уже сопоставлены.</div>';
+    return;
+  }
+
+  elements.categoryMappingContent.innerHTML = `
+    <div class="detail-card">
+      <div class="meta">Правило сохраняется для исходной категории и текущей пары кабинетов.</div>
+    </div>
+    <div class="brand-mapping-list">
+      ${issues
+        .map((issue) => {
+          const key = categoryIssueKey(issue);
+          const options = filteredCategoryOptions(issue);
+          const selection = categorySelection(issue);
+          const selectedOption = (issue.options || []).find((option) => option.key === selection.targetKey) || null;
+          const types = selectedOption?.context?.types || [];
+          return `
+            <section class="brand-mapping-card">
+              <div class="brand-mapping-head">
+                <div>
+                  <div class="preview-title">${escapeHtml(issue.source_label)}</div>
+                  <div class="meta">Товары: ${escapeHtml((issue.products || []).map((item) => item.title).join(", "))}</div>
+                </div>
+                <span class="badge badge-warning">Нужен ручной выбор</span>
+              </div>
+              <label>
+                <span>Поиск по категориям</span>
+                <input type="text" value="${escapeHtml(state.categoryMappingSearch[key] || "")}" placeholder="Найти категорию назначения" data-category-search="${key}" />
+              </label>
+              <label>
+                <span>Категория назначения</span>
+                <select data-category-select="${key}">
+                  <option value="">Выберите категорию</option>
+                  ${options
+                    .map(
+                      (option) => `
+                        <option value="${escapeHtml(option.key)}" ${option.key === selection.targetKey ? "selected" : ""}>${escapeHtml(option.path || option.label)}</option>
+                      `,
+                    )
+                    .join("")}
+                </select>
+              </label>
+              ${
+                types.length
+                  ? `
+                    <label>
+                      <span>Тип Ozon</span>
+                      <select data-category-type="${key}">
+                        <option value="">Выберите тип</option>
+                        ${types
+                          .map(
+                            (item) => `
+                              <option value="${item.id}" ${String(item.id) === String(selection.typeId || "") ? "selected" : ""}>${escapeHtml(item.name)}</option>
+                            `,
+                          )
+                          .join("")}
+                      </select>
+                    </label>
+                  `
+                  : ""
+              }
+            </section>
+          `;
+        })
+        .join("")}
+    </div>
+    <div class="inline-actions brand-mapping-actions">
+      <button class="ghost-button" type="button" data-close-category-mapping>Отмена</button>
+      <button class="primary-button" type="button" data-save-category-mapping>Сохранить категории</button>
+    </div>
+  `;
+
+  elements.categoryMappingContent.querySelectorAll("[data-category-search]").forEach((input) => {
+    input.addEventListener("input", () => {
+      state.categoryMappingSearch[input.dataset.categorySearch] = input.value;
+      window.clearTimeout(renderCategoryMappingModal.timer);
+      renderCategoryMappingModal.timer = window.setTimeout(renderCategoryMappingModal, 280);
+    });
+  });
+
+  elements.categoryMappingContent.querySelectorAll("[data-category-select]").forEach((select) => {
+    select.addEventListener("change", () => {
+      const key = select.dataset.categorySelect;
+      state.categoryMappingSelections[key] = { ...(state.categoryMappingSelections[key] || {}), targetKey: select.value, typeId: "" };
+      renderCategoryMappingModal();
+    });
+  });
+
+  elements.categoryMappingContent.querySelectorAll("[data-category-type]").forEach((select) => {
+    select.addEventListener("change", () => {
+      const key = select.dataset.categoryType;
+      state.categoryMappingSelections[key] = { ...(state.categoryMappingSelections[key] || {}), typeId: select.value };
+    });
+  });
+
+  elements.categoryMappingContent.querySelector("[data-close-category-mapping]")?.addEventListener("click", closeCategoryMappingModal);
+  elements.categoryMappingContent.querySelector("[data-save-category-mapping]")?.addEventListener("click", async () => {
+    try {
+      await saveCategoryMappings();
+    } catch (error) {
+      showToast(error.message, true);
+    }
+  });
+}
+
+async function saveCategoryMappings() {
+  const issues = previewCategoryIssues();
+  const items = issues.map((issue) => {
+    const selection = categorySelection(issue);
+    const selectedOption = (issue.options || []).find((option) => option.key === selection.targetKey);
+    if (!selectedOption) {
+      throw new Error(`Выберите категорию назначения для "${issue.source_label}".`);
+    }
+    const selectedType = (selectedOption.context?.types || []).find((item) => String(item.id) === String(selection.typeId || ""));
+    if ((selectedOption.context?.types || []).length && !selectedType) {
+      throw new Error(`Выберите тип Ozon для "${issue.source_label}".`);
+    }
+    return {
+      type: "category",
+      source_key: issue.source_key,
+      source_label: issue.source_label,
+      target_key: selectedOption.key,
+      target_label: selectedOption.label,
+      target_context: {
+        description_category_id: selectedOption.context?.description_category_id,
+        market_category_id: selectedOption.context?.market_category_id || selectedOption.context?.category_id || null,
+        category_id: selectedOption.context?.category_id || selectedOption.context?.market_category_id || null,
+        type_id: selectedType?.id || null,
+        type_name: selectedType?.name || null,
+      },
+    };
+  });
+
+  await api("/api/v1/mappings/categories", {
+    method: "POST",
+    body: JSON.stringify({
+      source_marketplace: currentTransferPayload().source_marketplace,
+      target_marketplace: currentTransferPayload().target_marketplace,
+      items,
+    }),
+  });
+  showToast("Сопоставления категорий сохранены.");
+  closeCategoryMappingModal();
+  await makePreview();
+}
+
+function marketplaceLabel(marketplace) {
+  if (marketplace === "ozon") return "Ozon";
+  if (marketplace === "wb") return "Wildberries";
+  if (marketplace === "yandex_market") return "Yandex Market";
+  return "маркетплейс";
+}
+
+function brandIssueKey(issue) {
+  return `${issue.target_attribute_id}:${issue.source_value_normalized}`;
+}
+
+function openBrandMappingModal() {
+  elements.brandMappingModal.classList.remove("hidden");
+  renderBrandMappingModal();
+}
+
+function closeBrandMappingModal() {
+  elements.brandMappingModal.classList.add("hidden");
+}
+
+function filteredBrandOptions(issue) {
+  const search = (state.brandMappingSearch[brandIssueKey(issue)] || "").trim().toLowerCase();
+  const options = issue.options || [];
+  if (!search) {
+    return options;
+  }
+  return options.filter((item) => String(item.value || "").toLowerCase().includes(search));
+}
+
+function renderBrandMappingModal() {
+  const mappings = previewBrandMappings();
+  elements.brandMappingTitle.textContent = `Сопоставление брендов Ozon (${mappings.length})`;
+  if (!mappings.length) {
+    elements.brandMappingContent.innerHTML = `
+      <div class="detail-card">
+        <div class="meta">В текущем preview нет брендов Ozon, требующих или допускающих ручное сопоставление. Кнопка оставлена активной, чтобы к экрану сопоставления можно было вернуться в любой момент.</div>
+      </div>
+      <div class="empty-state">Для текущего preview нет доступных brand mappings.</div>
+      <div class="inline-actions brand-mapping-actions">
+        <button class="ghost-button" type="button" data-close-brand-mapping>Закрыть</button>
+      </div>
+    `;
+    elements.brandMappingContent.querySelector("[data-close-brand-mapping]")?.addEventListener("click", closeBrandMappingModal);
+    return;
+  }
+
+  elements.brandMappingContent.innerHTML = `
+    <div class="detail-card">
+      <div class="meta">Правила сохраняются для текущей пары кабинетов и будут применяться в следующих preview/import. Здесь можно как сохранить новые, так и изменить уже существующие сопоставления.</div>
+    </div>
+    <div class="brand-mapping-list">
+      ${mappings
+        .map((issue) => {
+          const key = brandIssueKey(issue);
+          const options = filteredBrandOptions(issue);
+          const selectedValue = state.brandMappingSelections[key] || String(issue.selected_dictionary_value_id || "");
+          const hasSavedMapping = Boolean(issue.selected_dictionary_value_id);
+          return `
+            <section class="brand-mapping-card">
+              <div class="brand-mapping-head">
+                <div>
+                  <div class="preview-title">${escapeHtml(issue.source_value)}</div>
+                  <div class="meta">Поле Ozon: ${escapeHtml(issue.target_attribute_name || "Бренд")}</div>
+                </div>
+                <span class="badge ${hasSavedMapping ? "badge-success" : "badge-warning"}">
+                  ${hasSavedMapping ? "Есть сохраненное правило" : "Нужен ручной выбор"}
+                </span>
+              </div>
+              <label>
+                <span>Поиск по брендам Ozon</span>
+                <input type="text" value="${escapeHtml(state.brandMappingSearch[key] || "")}" placeholder="Найти бренд Ozon" data-brand-search="${key}" />
+              </label>
+              <label>
+                <span>Бренд Ozon</span>
+                <select data-brand-select="${key}">
+                  <option value="">Выберите бренд</option>
+                  ${options
+                    .map(
+                      (option) => `
+                        <option value="${option.id}" ${String(option.id) === String(selectedValue) ? "selected" : ""}>${escapeHtml(option.value)}</option>
+                      `,
+                    )
+                    .join("")}
+                </select>
+              </label>
+              ${
+                hasSavedMapping
+                  ? `<div class="meta">Сейчас сохранено: ${escapeHtml(issue.selected_dictionary_value || "—")}</div>`
+                  : ""
+              }
+              ${options.length ? "" : '<div class="empty-state">Ничего не найдено. Измените поиск или обновите preview.</div>'}
+            </section>
+          `;
+        })
+        .join("")}
+    </div>
+    <div class="inline-actions brand-mapping-actions">
+      <button class="ghost-button" type="button" data-close-brand-mapping>Отмена</button>
+      <button class="primary-button" type="button" data-save-brand-mapping>Сохранить сопоставления</button>
+    </div>
+  `;
+
+  elements.brandMappingContent.querySelectorAll("[data-brand-search]").forEach((input) => {
+    input.addEventListener("input", () => {
+      state.brandMappingSearch[input.dataset.brandSearch] = input.value;
+      window.clearTimeout(renderBrandMappingModal.timer);
+      renderBrandMappingModal.timer = window.setTimeout(renderBrandMappingModal, 280);
+    });
+  });
+
+  elements.brandMappingContent.querySelectorAll("[data-brand-select]").forEach((select) => {
+    select.addEventListener("change", () => {
+      state.brandMappingSelections[select.dataset.brandSelect] = select.value;
+    });
+  });
+
+  elements.brandMappingContent.querySelector("[data-close-brand-mapping]")?.addEventListener("click", closeBrandMappingModal);
+  elements.brandMappingContent.querySelector("[data-save-brand-mapping]")?.addEventListener("click", async () => {
+    try {
+      await saveBrandMappings();
+    } catch (error) {
+      showToast(error.message, true);
+    }
+  });
+}
+
+async function saveBrandMappings() {
+  const issues = previewBrandMappings();
+  const targetLabel = marketplaceLabel(currentTransferPayload().target_marketplace);
+  const items = issues.map((issue) => {
+    const key = brandIssueKey(issue);
+    const selectedId = Number(state.brandMappingSelections[key] || issue.selected_dictionary_value_id || 0);
+    const selectedOption = (issue.options || []).find((option) => Number(option.id) === selectedId);
+    if (!selectedOption) {
+      throw new Error(`Выберите значение ${targetLabel} для "${issue.source_value}".`);
+    }
+    return {
+      type: "brand",
+      source_value: issue.source_value,
+      target_category_id: Number(issue.target_category_id || currentTransferPayload().target_category_id || 0),
+      target_attribute_id: issue.target_attribute_id,
+      target_dictionary_value_id: selectedOption.id,
+      target_dictionary_value: selectedOption.value,
+    };
+  });
+
+  if (items.some((item) => !item.target_category_id)) {
+    throw new Error("Не удалось определить целевую категорию для сохранения сопоставления бренда.");
+  }
+
+  await api("/api/v1/mappings/dictionary", {
+    method: "POST",
+    body: JSON.stringify({
+      source_marketplace: currentTransferPayload().source_marketplace,
+      target_marketplace: currentTransferPayload().target_marketplace,
+      items,
+    }),
+  });
+  showToast("Сопоставления брендов сохранены.");
+  closeBrandMappingModal();
+  await makePreview();
 }
 
 function previewItemByProductId(productId) {
   return state.preview?.items?.find((item) => item.product_id === productId) || null;
 }
 
+function previewReadinessMeta(item) {
+  const readiness = String(item.readiness || "").toLowerCase();
+  if (readiness === "needs_mapping") {
+    return { label: "Нужно сопоставление", className: "badge-warning" };
+  }
+  if (readiness === "blocked") {
+    return { label: "Есть блокеры", className: "badge-danger" };
+  }
+  return { label: "Готов к импорту", className: "badge-success" };
+}
+
+function previewIssueSummary(item) {
+  const summary = [];
+  if (!item.target_category_id) {
+    summary.push("Не выбрана целевая категория.");
+  }
+  if ((item.dictionary_issues || []).length) {
+    summary.push(`Нужно сопоставить значения: ${(item.dictionary_issues || []).map((issue) => issue.target_attribute_name || issue.type).join(", ")}.`);
+  }
+  if ((item.missing_required_attributes || []).length) {
+    summary.push(`Не хватает обязательных атрибутов: ${(item.missing_required_attributes || []).join(", ")}.`);
+  }
+  if ((item.missing_critical_fields || []).length) {
+    summary.push(`Не хватает критичных полей: ${(item.missing_critical_fields || []).join(", ")}.`);
+  }
+  if ((item.warnings || []).length) {
+    summary.push(`Есть предупреждения: ${(item.warnings || []).length}.`);
+  }
+  return summary;
+}
+
 function payloadFieldValue(payload, label) {
   const attributes = payload.attributes || [];
   const attribute = attributes.find((item) => String(item.name || "").toLowerCase() === label.toLowerCase());
   return attribute ? (attribute.value || []).join(", ") : "";
+}
+
+function previewPayloadImages(payload) {
+  if (Array.isArray(payload.images) && payload.images.length) {
+    return payload.images;
+  }
+  if (Array.isArray(payload.offer?.pictures) && payload.offer.pictures.length) {
+    return payload.offer.pictures;
+  }
+  const variant = (payload.variants || [])[0] || {};
+  if (Array.isArray(variant.mediaFiles) && variant.mediaFiles.length) {
+    return variant.mediaFiles;
+  }
+  return [];
 }
 
 function previewMainFields(item) {
@@ -378,6 +841,18 @@ function previewMainFields(item) {
       ["Вес", payload.weight ? `${payload.weight} г` : "—"],
     ];
   }
+  if (state.preview?.target_marketplace === "yandex_market") {
+    const offer = payload.offer || {};
+    const parameterCount = Array.isArray(payload.parameterValues) ? payload.parameterValues.length : 0;
+    return [
+      ["Название", offer.name || item.title || "—"],
+      ["Артикул", offer.shopSku || "—"],
+      ["Категория", item.target_category_name || "—"],
+      ["Бренд", offer.vendor || "—"],
+      ["Изображения", String((offer.pictures || []).length)],
+      ["Параметры", String(parameterCount)],
+    ];
+  }
   const variant = (payload.variants || [])[0] || {};
   const size = (variant.sizes || [])[0] || {};
   return [
@@ -392,22 +867,28 @@ function previewMainFields(item) {
 
 function renderPreviewCardModal(item) {
   const payload = item.payload || {};
-  const images = payload.images || [];
+  const images = previewPayloadImages(payload);
   const selectedImage = images[state.previewCardImageIndex] || images[0] || "";
   const mainFields = previewMainFields(item);
-  const attributes = payload.attributes || [];
   const missing = [...(item.missing_required_attributes || []), ...(item.missing_critical_fields || []).map((value) => `critical: ${value}`)];
   const mappedEntries = Object.entries(item.mapped_attributes || {}).map(([key, values]) => [
     key,
     Array.isArray(values) ? values.map((value) => value.value || value).join(", ") : String(values),
   ]);
+  const readiness = previewReadinessMeta(item);
   const chips = [
-    payload.offer_id || ((payload.variants || [])[0] || {}).vendorCode || "",
+    payload.offer_id || payload.offer?.shopSku || ((payload.variants || [])[0] || {}).vendorCode || "",
     item.target_category_name || "",
     payload.price ? `${payload.price} ₽` : "",
+    readiness.label,
   ].filter(Boolean);
 
-  elements.previewCardTitle.textContent = state.preview?.target_marketplace === "ozon" ? "Карточка Ozon после переноса" : "Карточка WB после переноса";
+  elements.previewCardTitle.textContent =
+    state.preview?.target_marketplace === "ozon"
+      ? "Карточка Ozon после переноса"
+      : state.preview?.target_marketplace === "yandex_market"
+        ? "Карточка Yandex Market после переноса"
+        : "Карточка WB после переноса";
   elements.previewCardContent.innerHTML = `
     <div class="preview-card-layout">
       <section class="preview-showcase">
@@ -439,9 +920,14 @@ function renderPreviewCardModal(item) {
           <div class="preview-chip-row">
             ${chips.map((chip) => `<span class="preview-chip">${escapeHtml(chip)}</span>`).join("")}
           </div>
-          <h3 class="preview-title">${escapeHtml(payload.name || ((payload.variants || [])[0] || {}).title || item.title)}</h3>
+          <h3 class="preview-title">${escapeHtml(payload.name || payload.offer?.name || ((payload.variants || [])[0] || {}).title || item.title)}</h3>
           <div class="preview-price">${escapeHtml(payload.price ? `${payload.price} ₽` : "Цена не определена")}</div>
-          <div class="preview-description">${escapeHtml(payload.description || ((payload.variants || [])[0] || {}).description || "Описание не заполнено.")}</div>
+          <div class="preview-description">${escapeHtml(payload.description || payload.offer?.description || ((payload.variants || [])[0] || {}).description || "Описание не заполнено.")}</div>
+          ${
+            (item.warnings || []).length
+              ? `<div class="preview-warning-stack">${(item.warnings || []).map((warning) => `<div class="preview-warning-item">${escapeHtml(warning)}</div>`).join("")}</div>`
+              : ""
+          }
         </div>
       </section>
 
@@ -524,6 +1010,11 @@ function statusBadge(status) {
   return "badge badge-neutral";
 }
 
+function canSyncJob(job) {
+  const value = String(job?.status || "").toLowerCase();
+  return Boolean(job?.external_task_id) && ["submitted", "processing"].includes(value);
+}
+
 function renderJobs() {
   if (!state.jobs.length) {
     elements.jobsList.innerHTML = '<div class="empty-state">Задач пока нет.</div>';
@@ -537,12 +1028,14 @@ function renderJobs() {
           <div class="job-meta">
             <div>
               <div class="job-title">Задача #${job.id}</div>
-              <div class="meta">${escapeHtml(job.source_marketplace)} → ${escapeHtml(job.target_marketplace)}</div>
+              <div class="meta">${escapeHtml(marketplaceLabel(job.source_marketplace))} → ${escapeHtml(marketplaceLabel(job.target_marketplace))}</div>
               <div class="meta">Создана: ${escapeHtml(job.created_at)}</div>
+              ${job.external_task_id ? `<div class="meta">Tracking: ${escapeHtml(job.external_task_id)}</div>` : ""}
+              ${job.error_message ? `<div class="meta">Ошибка: ${escapeHtml(job.error_message)}</div>` : ""}
             </div>
             <div class="inline-actions">
               <span class="${statusBadge(job.status)}">${escapeHtml(job.status)}</span>
-              <button class="ghost-button" type="button" data-sync-job="${job.id}">Синхронизировать</button>
+              <button class="ghost-button" type="button" data-sync-job="${job.id}" ${canSyncJob(job) ? "" : "disabled"}>Синхронизировать</button>
             </div>
           </div>
           <pre>${escapeHtml(JSON.stringify(job.result || {}, null, 2))}</pre>
@@ -616,12 +1109,16 @@ async function loadProducts() {
   const marketplace = elements.sourceMarketplace.value;
   state.catalogMessage = "Загружаю товары из выбранного источника...";
   renderProducts();
-  state.products = await api(`/api/v1/catalog/products?marketplace=${marketplace}`);
+  state.products = await api(`/api/v1/catalog/products?marketplace=${marketplace}&limit=500`);
   state.selectedProducts = new Set();
   state.preview = null;
   state.expandedProductId = null;
   state.productDetailsCache = {};
   state.productOverrides = {};
+  state.brandMappingSelections = {};
+  state.brandMappingSearch = {};
+  state.categoryMappingSelections = {};
+  state.categoryMappingSearch = {};
   state.catalogMessage = state.products.length
     ? `Найдено товаров: ${state.products.length}.`
     : "API вернул 0 товаров. Проверьте, что в кабинете есть карточки и у токена есть нужные права.";
@@ -843,6 +1340,10 @@ async function launchTransfer() {
   if (!payload.product_ids.length) {
     throw new Error("Выберите хотя бы один товар.");
   }
+  if ((state.preview?.category_issues || []).length) {
+    openCategoryMappingModal();
+    throw new Error("Сначала сопоставьте категории.");
+  }
   const job = await api("/api/v1/transfers", {
     method: "POST",
     body: JSON.stringify(payload),
@@ -859,10 +1360,14 @@ async function syncJob(jobId) {
 
 function syncMarketplaceSelectors(changed = "source") {
   if (elements.sourceMarketplace.value !== elements.targetMarketplace.value) return;
+  const pickAlternative = (selectElement, currentValue) =>
+    Array.from(selectElement.options)
+      .map((option) => option.value)
+      .find((value) => value && value !== currentValue) || currentValue;
   if (changed === "source") {
-    elements.targetMarketplace.value = elements.sourceMarketplace.value === "wb" ? "ozon" : "wb";
+    elements.targetMarketplace.value = pickAlternative(elements.targetMarketplace, elements.sourceMarketplace.value);
   } else {
-    elements.sourceMarketplace.value = elements.targetMarketplace.value === "wb" ? "ozon" : "wb";
+    elements.sourceMarketplace.value = pickAlternative(elements.sourceMarketplace, elements.targetMarketplace.value);
   }
 }
 
@@ -947,6 +1452,28 @@ elements.ozonConnectionForm.addEventListener("submit", async (event) => {
   }
 });
 
+elements.yandexMarketConnectionForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const formElement = elements.yandexMarketConnectionForm;
+  const form = new FormData(formElement);
+  try {
+    await api("/api/v1/connections/yandex_market", {
+      method: "PUT",
+      body: JSON.stringify({
+        marketplace: "yandex_market",
+        token: form.get("token"),
+        business_id: Number(form.get("business_id")),
+        campaign_id: Number(form.get("campaign_id")),
+      }),
+    });
+    await refreshConnections();
+    formElement?.reset?.();
+    showToast("Яндекс Маркет подключение сохранено.");
+  } catch (error) {
+    showToast(error.message, true);
+  }
+});
+
 elements.refreshConnectionsButton.addEventListener("click", async () => {
   try {
     await refreshConnections();
@@ -1018,6 +1545,12 @@ elements.closeModalButton.addEventListener("click", closeProductModal);
 elements.modalBackdrop.addEventListener("click", closeProductModal);
 elements.closePreviewCardButton.addEventListener("click", closePreviewCardModal);
 elements.previewCardBackdrop.addEventListener("click", closePreviewCardModal);
+elements.categoryMappingButton.addEventListener("click", openCategoryMappingModal);
+elements.closeCategoryMappingButton.addEventListener("click", closeCategoryMappingModal);
+elements.categoryMappingBackdrop.addEventListener("click", closeCategoryMappingModal);
+elements.brandMappingButton.addEventListener("click", openBrandMappingModal);
+elements.closeBrandMappingButton.addEventListener("click", closeBrandMappingModal);
+elements.brandMappingBackdrop.addEventListener("click", closeBrandMappingModal);
 elements.closeImageModalButton.addEventListener("click", closeImageModal);
 elements.imageModalBackdrop.addEventListener("click", closeImageModal);
 

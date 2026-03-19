@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import re
+from datetime import UTC, datetime
 from difflib import SequenceMatcher
 from typing import Any
 
@@ -42,13 +44,17 @@ class MappingService:
         target_category: CategoryNode,
         target_attributes: list[CategoryAttribute],
         target_marketplace: str,
-    ) -> tuple[dict[str, Any], dict[str, Any], list[str], list[str], list[str]]:
+        saved_dictionary_mappings: dict[str, dict[str, Any]] | None = None,
+        trace=None,
+    ) -> tuple[dict[str, Any], dict[str, Any], list[str], list[str], list[str], list[dict[str, Any]]]:
+        started_at = datetime.now(UTC)
         source_index = self._index_source_attributes(source_product)
         mapped_attributes: dict[str, Any] = {}
         payload_attributes: list[tuple[CategoryAttribute, list[dict[str, Any]]]] = []
         missing_required: list[str] = []
         missing_critical: list[str] = []
         warnings: list[str] = []
+        dictionary_issues: list[dict[str, Any]] = []
 
         for attribute in target_attributes:
             source_value = self._find_source_value(attribute.name, source_index, source_product)
@@ -58,7 +64,7 @@ class MappingService:
                 if attribute.required:
                     missing_required.append(attribute.name)
                 continue
-            mapped_value = self._map_value(attribute, source_value)
+            mapped_value = self._map_value(attribute, source_value, saved_dictionary_mappings=saved_dictionary_mappings)
             if (
                 target_marketplace == "ozon"
                 and self._requires_ozon_dictionary_match(attribute)
@@ -69,73 +75,202 @@ class MappingService:
                 warnings.append(
                     f'Ozon dictionary match not found for "{attribute.name}": {", ".join(source_value)}'
                 )
+                if self._is_brand_attribute(attribute):
+                    dictionary_issues.append(
+                        {
+                            "type": "brand",
+                            "product_id": source_product.id,
+                            "source_value": source_value[0],
+                            "source_value_normalized": self._normalize(source_value[0]),
+                            "target_category_id": target_category.id,
+                            "target_attribute_id": attribute.id,
+                            "target_attribute_name": attribute.name,
+                            "options": [
+                                {
+                                    "id": item.get("id") or item.get("dictionary_value_id") or 0,
+                                    "value": str(item.get("value") or item.get("name") or ""),
+                                }
+                                for item in attribute.dictionary_values
+                            ],
+                        }
+                    )
             mapped_attributes[attribute.name] = mapped_value
             payload_attributes.append((attribute, mapped_value))
 
-        if source_product.brand and "бренд" not in source_index:
+        if target_marketplace == "ozon" and source_product.brand and "бренд" not in source_index:
             warnings.append("Бренд взят из отдельного поля карточки, а не из списка атрибутов.")
 
         if target_marketplace == "ozon":
-            barcode = source_product.barcode_list[0] if source_product.barcode_list else None
-            stock = source_product.stock if source_product.stock is not None else 0
-            resolved_type_id = self._resolve_ozon_type_id(target_category)
-            resolved_type_name = self._resolve_ozon_type_name(target_category)
-            if not source_product.offer_id:
-                missing_critical.append("offer_id")
-            if not source_product.title:
-                missing_critical.append("name")
-            if not source_product.price:
-                missing_critical.append("price")
-            if not resolved_type_id:
-                missing_critical.append("type_id")
-            if not source_product.images:
-                warnings.append("У товара нет изображений для Ozon.")
-            if not barcode:
-                warnings.append("У товара нет штрихкода; для Ozon это нежелательно.")
-            payload = {
-                "offer_id": self._sanitize_offer_id(source_product.offer_id or source_product.id),
-                "name": self._sanitize_ozon_name(source_product.title),
-                "description": source_product.description or "",
-                "description_category_id": target_category.id,
-                "type_id": int(resolved_type_id) if resolved_type_id else 0,
-                "attributes": [self._ozon_attribute_payload(attribute, mapped_value) for attribute, mapped_value in payload_attributes],
-                "images": source_product.images[:10],
-                "price": source_product.price or "0",
-                "old_price": source_product.price or "0",
-                "stock": stock,
-                "barcode": barcode or "",
-                "vat": "0",
-                **self._ozon_dimensions(source_product),
-            }
+            payload = self._build_ozon_payload(
+                source_product=source_product,
+                target_category=target_category,
+                payload_attributes=payload_attributes,
+                missing_critical=missing_critical,
+                warnings=warnings,
+            )
+        elif target_marketplace == "yandex_market":
+            payload = self._build_yandex_payload(
+                source_product=source_product,
+                target_category=target_category,
+                payload_attributes=payload_attributes,
+                missing_critical=missing_critical,
+                warnings=warnings,
+            )
         else:
-            normalized_sizes = self._wb_sizes(source_product)
-            if not (source_product.offer_id or source_product.id):
-                missing_critical.append("vendorCode")
-            if not source_product.title:
-                missing_critical.append("title")
-            if not source_product.description:
-                missing_critical.append("description")
-            if not normalized_sizes:
-                missing_critical.append("sizes")
-            else:
-                if any(not size.get("price") for size in normalized_sizes):
-                    missing_critical.append("sizes.price")
-                if any(not size.get("skus") for size in normalized_sizes):
-                    missing_critical.append("sizes.skus")
-            payload = {
-                "subjectID": target_category.id,
-                "variants": [
+            payload = self._build_wb_payload(
+                source_product=source_product,
+                target_category=target_category,
+                payload_attributes=payload_attributes,
+                missing_critical=missing_critical,
+                warnings=warnings,
+            )
+        if trace is not None:
+            trace.log_event(
+                event_type="function",
+                operation="mapping.build_import_payload",
+                request_url="function://mapping/build_import_payload",
+                request_body={
+                    "source_product_id": source_product.id,
+                    "target_category_id": target_category.id,
+                    "target_marketplace": target_marketplace,
+                },
+                response_body={
+                    "payload": payload,
+                    "missing_required": missing_required,
+                    "missing_critical": missing_critical,
+                    "warnings": warnings,
+                    "dictionary_issues": dictionary_issues,
+                },
+                duration_ms=int((datetime.now(UTC) - started_at).total_seconds() * 1000),
+            )
+        return payload, mapped_attributes, missing_required, missing_critical, warnings, dictionary_issues
+
+    def _build_ozon_payload(
+        self,
+        *,
+        source_product: ProductDetails,
+        target_category: CategoryNode,
+        payload_attributes: list[tuple[CategoryAttribute, list[dict[str, Any]]]],
+        missing_critical: list[str],
+        warnings: list[str],
+    ) -> dict[str, Any]:
+        barcode = source_product.barcode_list[0] if source_product.barcode_list else None
+        stock = source_product.stock if source_product.stock is not None else 0
+        resolved_type_id = self._resolve_ozon_type_id(target_category)
+        if not source_product.offer_id:
+            missing_critical.append("offer_id")
+        if not source_product.title:
+            missing_critical.append("name")
+        if not source_product.price:
+            missing_critical.append("price")
+        if not resolved_type_id:
+            missing_critical.append("type_id")
+        if not source_product.images:
+            warnings.append("У товара нет изображений для Ozon.")
+        if not barcode:
+            warnings.append("У товара нет штрихкода; для Ozon это нежелательно.")
+        return {
+            "offer_id": self._sanitize_offer_id(source_product.offer_id or source_product.id),
+            "name": self._sanitize_ozon_name(source_product.title),
+            "annotation": source_product.description or "",
+            "description": source_product.description or "",
+            "description_category_id": target_category.id,
+            "type_id": int(resolved_type_id) if resolved_type_id else 0,
+            "attributes": [self._ozon_attribute_payload(attribute, mapped_value) for attribute, mapped_value in payload_attributes],
+            "images": source_product.images[:10],
+            "price": source_product.price or "0",
+            "old_price": source_product.price or "0",
+            "stock": stock,
+            "barcode": barcode or "",
+            "vat": "0",
+            **self._ozon_dimensions(source_product),
+        }
+
+    def _build_wb_payload(
+        self,
+        *,
+        source_product: ProductDetails,
+        target_category: CategoryNode,
+        payload_attributes: list[tuple[CategoryAttribute, list[dict[str, Any]]]],
+        missing_critical: list[str],
+        warnings: list[str],
+    ) -> dict[str, Any]:
+        normalized_sizes = self._wb_sizes(source_product)
+        if not (source_product.offer_id or source_product.id):
+            missing_critical.append("vendorCode")
+        if not source_product.title:
+            missing_critical.append("title")
+        if not normalized_sizes:
+            missing_critical.append("sizes")
+        else:
+            if any(not size.get("price") for size in normalized_sizes):
+                missing_critical.append("sizes.price")
+            if any(not size.get("skus") for size in normalized_sizes):
+                missing_critical.append("sizes.skus")
+        if not source_product.description:
+            warnings.append("У товара нет описания; WB импорт будет запущен без description.")
+        if not source_product.images:
+            warnings.append("У товара нет изображений; после переноса карточку WB стоит дополнить.")
+        if not source_product.brand:
+            warnings.append("Бренд не найден в источнике; будет использовано значение по умолчанию.")
+        return {
+            "subjectID": target_category.id,
+            "variants": [
+                {
+                    "vendorCode": self._sanitize_offer_id(source_product.offer_id or source_product.id),
+                    "title": self._sanitize_wb_title(source_product.title),
+                    "description": source_product.description or "",
+                    "brand": source_product.brand or "Нет бренда",
+                    "mediaFiles": source_product.images[:30],
+                    "characteristics": [self._attribute_payload(attribute, mapped_value) for attribute, mapped_value in payload_attributes],
+                    "sizes": normalized_sizes,
+                }
+            ],
+        }
+
+    def _build_yandex_payload(
+        self,
+        *,
+        source_product: ProductDetails,
+        target_category: CategoryNode,
+        payload_attributes: list[tuple[CategoryAttribute, list[dict[str, Any]]]],
+        missing_critical: list[str],
+        warnings: list[str],
+    ) -> dict[str, Any]:
+        if not (source_product.offer_id or source_product.id):
+            missing_critical.append("shopSku")
+        if not source_product.title:
+            missing_critical.append("name")
+        if not source_product.images:
+            warnings.append("У товара нет изображений; preview для Yandex Market будет неполным.")
+
+        parameter_values = []
+        for attribute, mapped_value in payload_attributes:
+            values = []
+            for item in mapped_value:
+                value_payload = {"value": item["value"]}
+                if item["dictionary_value_id"]:
+                    value_payload["optionId"] = item["dictionary_value_id"]
+                values.append(value_payload)
+            if values:
+                parameter_values.append(
                     {
-                        "vendorCode": source_product.offer_id or source_product.id,
-                        "title": self._sanitize_wb_title(source_product.title),
-                        "description": source_product.description or "",
-                        "brand": source_product.brand or "Нет бренда",
-                        "characteristics": [self._attribute_payload(attribute, mapped_value) for attribute, mapped_value in payload_attributes],
-                        "sizes": normalized_sizes,
+                        "parameterId": attribute.id,
+                        "values": values,
                     }
-                ],
-            }
-        return payload, mapped_attributes, missing_required, missing_critical, warnings
+                )
+
+        return {
+            "marketCategoryId": target_category.id,
+            "offer": {
+                "shopSku": self._sanitize_offer_id(source_product.offer_id or source_product.id),
+                "name": source_product.title,
+                "description": source_product.description or "",
+                "vendor": source_product.brand or "",
+                "pictures": source_product.images[:20],
+            },
+            "parameterValues": parameter_values,
+        }
 
     def _index_source_attributes(self, product: ProductDetails) -> dict[str, list[str]]:
         index: dict[str, list[str]] = {}
@@ -164,11 +299,17 @@ class MappingService:
                     normalized_variant = self._normalize(variant)
                     if normalized_variant in source_index:
                         return source_index[normalized_variant]
-        if "бренд" in normalized_target and product.brand:
+        if ("бренд" in normalized_target or normalized_target == "brand") and product.brand:
             return [product.brand]
         return None
 
-    def _map_value(self, attribute: CategoryAttribute, values: list[str]) -> list[dict[str, Any]]:
+    def _map_value(
+        self,
+        attribute: CategoryAttribute,
+        values: list[str],
+        *,
+        saved_dictionary_mappings: dict[str, dict[str, Any]] | None = None,
+    ) -> list[dict[str, Any]]:
         mapped: list[dict[str, Any]] = []
         dictionary_index = {
             self._normalize(str(item.get("value") or item.get("name") or "")): item
@@ -184,6 +325,15 @@ class MappingService:
                         "dictionary_value_id": dictionary_value.get("id")
                         or dictionary_value.get("dictionary_value_id")
                         or 0,
+                    }
+                )
+            elif saved_dictionary_mappings and normalized in saved_dictionary_mappings:
+                saved_value = saved_dictionary_mappings[normalized]
+                target_context = json.loads(saved_value.get("target_context_json") or "{}")
+                mapped.append(
+                    {
+                        "value": str(target_context.get("target_dictionary_value") or saved_value.get("target_label") or value),
+                        "dictionary_value_id": int(target_context.get("target_dictionary_value_id") or 0),
                     }
                 )
             else:
@@ -214,6 +364,10 @@ class MappingService:
         if not dictionary_id:
             return False
         return attribute.id in {85, 8229}
+
+    def _is_brand_attribute(self, attribute: CategoryAttribute) -> bool:
+        normalized_name = self._normalize(attribute.name)
+        return attribute.id == 85 or normalized_name == self._normalize("бренд") or normalized_name == "brand"
 
     def _ozon_dimensions(self, product: ProductDetails) -> dict[str, Any]:
         dimensions = product.dimensions or {}

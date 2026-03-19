@@ -695,6 +695,21 @@ select:focus {
   font-size: 0.88rem;
 }
 
+.preview-summary-list {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.preview-summary-item {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(73, 62, 51, 0.06);
+  color: #41352a;
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
 .preview-columns {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -722,9 +737,53 @@ select:focus {
   padding-bottom: 0;
 }
 
+.brand-mapping-list {
+  display: grid;
+  gap: 16px;
+}
+
+.brand-mapping-card {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(73, 62, 51, 0.1);
+}
+
+.brand-mapping-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.brand-mapping-actions {
+  justify-content: flex-end;
+}
+
+.brand-mapping-card select,
+.brand-mapping-card input {
+  width: 100%;
+}
+
 .preview-description {
   line-height: 1.6;
   color: var(--text);
+}
+
+.preview-warning-stack {
+  display: grid;
+  gap: 8px;
+}
+
+.preview-warning-item {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(199, 138, 45, 0.12);
+  color: #6f4d14;
+  font-size: 0.92rem;
+  line-height: 1.45;
 }
 
 .image-modal-card {
@@ -772,6 +831,10 @@ select:focus {
   .preview-showcase,
   .preview-columns {
     grid-template-columns: 1fr;
+  }
+
+  .brand-mapping-head {
+    flex-direction: column;
   }
 
   .modal {

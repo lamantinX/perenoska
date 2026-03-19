@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Perenositsa</title>
-    <link rel="stylesheet" href="/static/app.css?v=9" />
+    <link rel="stylesheet" href="/static/app.css?v=11" />
   </head>
   <body>
     <div class="page-glow page-glow-left"></div>
@@ -105,6 +105,29 @@
               </form>
               <div class="masked-value" id="ozonMasked"></div>
             </article>
+
+            <article class="credential-card">
+              <div class="marketplace-line">
+                <h3>Yandex Market</h3>
+                <span class="badge badge-neutral" id="yandexMarketConnectionBadge">Не подключен</span>
+              </div>
+              <form id="yandexMarketConnectionForm">
+                <label>
+                  <span>OAuth token</span>
+                  <input name="token" type="password" placeholder="Yandex OAuth token" required />
+                </label>
+                <label>
+                  <span>Business ID</span>
+                  <input name="business_id" type="number" inputmode="numeric" placeholder="Business ID" required />
+                </label>
+                <label>
+                  <span>Campaign ID</span>
+                  <input name="campaign_id" type="number" inputmode="numeric" placeholder="Campaign ID" required />
+                </label>
+                <button class="primary-button" type="submit">Сохранить Yandex Market</button>
+              </form>
+              <div class="masked-value" id="yandexMarketMasked"></div>
+            </article>
           </div>
         </section>
 
@@ -126,6 +149,7 @@
               <select id="sourceMarketplace">
                 <option value="wb">Wildberries</option>
                 <option value="ozon">Ozon</option>
+                <option value="yandex_market">Yandex Market</option>
               </select>
             </label>
             <label>
@@ -133,6 +157,7 @@
               <select id="targetMarketplace">
                 <option value="ozon">Ozon</option>
                 <option value="wb">Wildberries</option>
+                <option value="yandex_market">Yandex Market</option>
               </select>
             </label>
             <label>
@@ -168,6 +193,10 @@
             <div>
               <p class="panel-kicker">Preview</p>
               <h2>Маппинг и готовность</h2>
+            </div>
+            <div class="inline-actions">
+              <button class="secondary-button hidden" id="categoryMappingButton" type="button">Сопоставить категории</button>
+              <button class="secondary-button hidden" id="brandMappingButton" type="button">Сопоставить бренды</button>
             </div>
           </div>
           <div class="preview-list" id="previewList">
@@ -234,6 +263,34 @@
       </div>
     </section>
 
-    <script src="/static/app.js?v=14"></script>
+    <section class="modal hidden" id="brandMappingModal">
+      <div class="modal-backdrop" id="brandMappingBackdrop"></div>
+      <div class="modal-card">
+        <div class="panel-head">
+          <div>
+            <p class="panel-kicker">Сопоставление брендов</p>
+            <h2 id="brandMappingTitle">Выберите бренды Ozon</h2>
+          </div>
+          <button class="ghost-button" id="closeBrandMappingButton" type="button">Закрыть</button>
+        </div>
+        <div class="modal-content" id="brandMappingContent"></div>
+      </div>
+    </section>
+
+    <section class="modal hidden" id="categoryMappingModal">
+      <div class="modal-backdrop" id="categoryMappingBackdrop"></div>
+      <div class="modal-card">
+        <div class="panel-head">
+          <div>
+            <p class="panel-kicker">Сопоставление категорий</p>
+            <h2 id="categoryMappingTitle">Выберите категории назначения</h2>
+          </div>
+          <button class="ghost-button" id="closeCategoryMappingButton" type="button">Закрыть</button>
+        </div>
+        <div class="modal-content" id="categoryMappingContent"></div>
+      </div>
+    </section>
+
+    <script src="/static/app.js?v=16"></script>
   </body>
 </html>

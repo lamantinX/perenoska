@@ -1,18 +1,17 @@
 # Perenoska
 
-FastAPI-сервис для переноса карточек товаров между Wildberries, Ozon и Yandex Market с встроенным веб-интерфейсом.
+FastAPI-сервис для переноса карточек товаров между Wildberries и Ozon с встроенным веб-интерфейсом.
 
 ## Что есть сейчас
 
 - регистрация, логин и сессии пользователей;
-- хранение подключений WB/Ozon/Yandex Market в SQLite;
+- хранение подключений WB/Ozon в SQLite;
 - шифрование токенов и API-ключей перед записью в БД;
-- клиенты WB/Ozon/Yandex Market для каталога, категорий и импорта;
+- клиенты WB/Ozon для каталога, категорий и импорта;
 - встроенный SPA без отдельного frontend build-процесса;
-- preview переноса с авто-маппингом категорий, атрибутов и словарных значений;
+- preview переноса с авто-маппингом категорий и атрибутов;
 - запуск задач переноса и синхронизация статуса;
-- ручное сохранение category/dictionary mappings;
-- тесты для auth, connections, mappings и preview/import сценариев.
+- тесты для auth, connections и preview/import сценариев.
 
 ## Структура проекта
 
@@ -57,11 +56,8 @@ powershell -ExecutionPolicy Bypass -File scripts/verify.ps1
 - `GET /api/v1/connections`
 - `PUT /api/v1/connections/{marketplace}`
 - `GET /api/v1/catalog/products?marketplace=...`
-- `GET /api/v1/catalog/products/{product_id}?marketplace=...`
 - `GET /api/v1/catalog/categories?marketplace=...`
 - `GET /api/v1/catalog/categories/{category_id}/attributes?marketplace=...`
-- `POST /api/v1/mappings/categories`
-- `POST /api/v1/mappings/dictionary`
 - `POST /api/v1/transfers/preview`
 - `POST /api/v1/transfers`
 - `GET /api/v1/transfers`
@@ -72,7 +68,7 @@ powershell -ExecutionPolicy Bypass -File scripts/verify.ps1
 
 - маппинг атрибутов местами эвристический;
 - нет очередей, retry-механик и rate limiting;
-- нет полноценной категорийной матрицы и UI для истории ручных сопоставлений;
+- нет полноценной категорийной матрицы и истории ручных сопоставлений;
 - интеграционные тесты с реальными sandbox-кабинетами пока не настроены.
 
 ## Git

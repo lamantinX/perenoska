@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from contextlib import contextmanager
+from contextvars import ContextVar
 from typing import Any
 
 from app.schemas import CategoryAttribute, CategoryNode, ProductDetails, ProductSummary
@@ -10,9 +12,25 @@ class MarketplaceAPIError(RuntimeError):
     pass
 
 
+_current_trace_context: ContextVar[Any | None] = ContextVar("current_trace_context", default=None)
+
+
+@contextmanager
+def use_trace_context(trace: Any | None):
+    token = _current_trace_context.set(trace)
+    try:
+        yield
+    finally:
+        _current_trace_context.reset(token)
+
+
+def get_trace_context() -> Any | None:
+    return _current_trace_context.get()
+
+
 class MarketplaceClient(ABC):
     @abstractmethod
-    async def list_products(self, credentials: dict[str, Any], *, limit: int = 50) -> list[ProductSummary]:
+    async def list_products(self, credentials: dict[str, Any], *, limit: int = 500) -> list[ProductSummary]:
         raise NotImplementedError
 
     @abstractmethod

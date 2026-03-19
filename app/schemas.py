@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, model_validator
 class Marketplace(str, Enum):
     WB = "wb"
     OZON = "ozon"
+    YANDEX_MARKET = "yandex_market"
 
 
 class JobStatus(str, Enum):
@@ -17,6 +18,12 @@ class JobStatus(str, Enum):
     PROCESSING = "processing"
     COMPLETED = "completed"
     FAILED = "failed"
+
+
+class PreviewItemReadiness(str, Enum):
+    READY = "ready"
+    NEEDS_MAPPING = "needs_mapping"
+    BLOCKED = "blocked"
 
 
 class UserCreate(BaseModel):
@@ -46,6 +53,8 @@ class ConnectionUpsert(BaseModel):
     token: str | None = None
     client_id: str | None = None
     api_key: str | None = None
+    business_id: int | None = None
+    campaign_id: int | None = None
 
     @model_validator(mode="after")
     def validate_marketplace_credentials(self) -> "ConnectionUpsert":
@@ -53,6 +62,10 @@ class ConnectionUpsert(BaseModel):
             raise ValueError("Для Wildberries нужен token.")
         if self.marketplace == Marketplace.OZON and (not self.client_id or not self.api_key):
             raise ValueError("Для Ozon нужны client_id и api_key.")
+        if self.marketplace == Marketplace.YANDEX_MARKET and (
+            not self.token or self.business_id is None or self.campaign_id is None
+        ):
+            raise ValueError("Для Yandex Market нужны token, business_id и campaign_id.")
         return self
 
 
@@ -124,6 +137,7 @@ class TransferPreviewRequest(BaseModel):
 class TransferPreviewItem(BaseModel):
     product_id: str
     title: str
+    readiness: PreviewItemReadiness = PreviewItemReadiness.READY
     source_category_id: int | None = None
     target_category_id: int | None = None
     target_category_name: str | None = None
@@ -132,6 +146,7 @@ class TransferPreviewItem(BaseModel):
     missing_required_attributes: list[str] = Field(default_factory=list)
     missing_critical_fields: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+    dictionary_issues: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class TransferPreviewResponse(BaseModel):
@@ -139,6 +154,9 @@ class TransferPreviewResponse(BaseModel):
     target_marketplace: Marketplace
     ready_to_import: bool
     items: list[TransferPreviewItem]
+    dictionary_issues: list[dict[str, Any]] = Field(default_factory=list)
+    brand_mappings: list[dict[str, Any]] = Field(default_factory=list)
+    category_issues: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class TransferLaunchRequest(TransferPreviewRequest):
@@ -156,3 +174,53 @@ class TransferJobResponse(BaseModel):
     updated_at: str
     payload: dict[str, Any] = Field(default_factory=dict)
     result: dict[str, Any] = Field(default_factory=dict)
+
+
+class DictionaryMappingItem(BaseModel):
+    type: str
+    source_value: str = Field(min_length=1)
+    target_category_id: int
+    target_attribute_id: int
+    target_dictionary_value_id: int
+    target_dictionary_value: str = Field(min_length=1)
+
+
+class DictionaryMappingSaveRequest(BaseModel):
+    source_marketplace: Marketplace
+    target_marketplace: Marketplace
+    items: list[DictionaryMappingItem] = Field(min_length=1)
+
+
+class DictionaryMappingResponse(BaseModel):
+    id: int
+    type: str
+    source_value: str
+    source_value_normalized: str
+    target_attribute_id: int
+    target_dictionary_value_id: int
+    target_dictionary_value: str
+
+
+class CategoryMappingItem(BaseModel):
+    type: str
+    source_key: str = Field(min_length=1)
+    source_label: str = Field(min_length=1)
+    target_key: str = Field(min_length=1)
+    target_label: str = Field(min_length=1)
+    target_context: dict[str, Any] = Field(default_factory=dict)
+
+
+class CategoryMappingSaveRequest(BaseModel):
+    source_marketplace: Marketplace
+    target_marketplace: Marketplace
+    items: list[CategoryMappingItem] = Field(min_length=1)
+
+
+class CategoryMappingResponse(BaseModel):
+    id: int
+    type: str
+    source_key: str
+    source_label: str
+    target_key: str
+    target_label: str
+    target_context: dict[str, Any] = Field(default_factory=dict)

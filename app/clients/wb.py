@@ -3,32 +3,55 @@ from __future__ import annotations
 import base64
 import json
 import re
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
 
-from app.clients.base import MarketplaceAPIError, MarketplaceClient
+from app.clients.base import MarketplaceAPIError, MarketplaceClient, get_trace_context
 from app.schemas import CategoryAttribute, CategoryNode, ProductDetails, ProductSummary
 
 
 class WBClient(MarketplaceClient):
+    MAX_LIST_LIMIT = 100
+
     def __init__(self, base_url: str, timeout: float) -> None:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
 
-    async def list_products(self, credentials: dict[str, Any], *, limit: int = 50) -> list[ProductSummary]:
-        payload = {
-            "settings": {
-                "cursor": {
-                    "limit": limit,
-                },
-                "filter": {
-                    "withPhoto": -1,
-                },
+    async def list_products(self, credentials: dict[str, Any], *, limit: int = 500) -> list[ProductSummary]:
+        cards: list[dict[str, Any]] = []
+        cursor: dict[str, Any] = {}
+        seen_cursors: set[tuple[str, str]] = set()
+        while len(cards) < limit:
+            request_limit = min(limit - len(cards), self.MAX_LIST_LIMIT)
+            payload = {
+                "settings": {
+                    "cursor": {
+                        "limit": request_limit,
+                        **cursor,
+                    },
+                    "filter": {
+                        "withPhoto": -1,
+                    },
+                }
             }
-        }
-        data = await self._request("POST", "/content/v2/get/cards/list", credentials, json=payload)
-        cards = data.get("cards") or data.get("data", {}).get("cards") or data.get("data", []) or []
+            data = await self._request("POST", "/content/v2/get/cards/list", credentials, json=payload)
+            batch = data.get("cards") or data.get("data", {}).get("cards") or data.get("data", []) or []
+            if not batch:
+                break
+            cards.extend(batch)
+            next_cursor = data.get("cursor") or data.get("data", {}).get("cursor") or {}
+            updated_at = next_cursor.get("updatedAt")
+            nm_id = next_cursor.get("nmID")
+            if len(cards) >= limit or not updated_at or not nm_id:
+                break
+            next_cursor_value = {"updatedAt": updated_at, "nmID": nm_id}
+            next_cursor_key = (str(updated_at), str(nm_id))
+            if next_cursor_value == cursor or next_cursor_key in seen_cursors:
+                break
+            seen_cursors.add(next_cursor_key)
+            cursor = next_cursor_value
         nm_ids = [card.get("nmID") for card in cards if card.get("nmID")]
         public_details = await self._fetch_public_details(nm_ids)
         seller_prices = await self._fetch_seller_prices(credentials, nm_ids)
@@ -144,8 +167,23 @@ class WBClient(MarketplaceClient):
         **kwargs: Any,
     ) -> dict[str, Any]:
         headers = {"Authorization": credentials["token"]}
+        trace = get_trace_context()
+        started_at = datetime.now(UTC)
         async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
             response = await client.request(method, path, headers=headers, **kwargs)
+        if trace is not None:
+            trace.log_event(
+                event_type="http",
+                operation=f"wb:{method} {path}",
+                request_url=f"{self.base_url}{path}",
+                request_headers=headers,
+                request_body=kwargs.get("json") or kwargs.get("params"),
+                response_headers=dict(response.headers),
+                response_body=response.json() if response.content else {},
+                status_code=response.status_code,
+                duration_ms=int((datetime.now(UTC) - started_at).total_seconds() * 1000),
+                error_text=response.text if response.is_error else None,
+            )
         if response.is_error:
             raise MarketplaceAPIError(f"WB API error {response.status_code}: {response.text}")
         if not response.content:
@@ -160,8 +198,14 @@ class WBClient(MarketplaceClient):
     ) -> ProductSummary:
         variant = (card.get("variants") or [{}])[0]
         size = (card.get("sizes") or variant.get("sizes") or [{}])[0]
-        media = card.get("mediaFiles") or card.get("photos") or []
-        images = [item.get("big") or item.get("tm") or item.get("url") or item for item in media if item]
+        media = card.get("mediaFiles") or card.get("photos") or variant.get("mediaFiles") or variant.get("photos") or []
+        images = [
+            item.get("big") or item.get("tm") or item.get("url") or item
+            if isinstance(item, dict)
+            else item
+            for item in media
+            if item
+        ]
         vendor_code = card.get("vendorCode") or variant.get("vendorCode")
         title = (
             card.get("title")
@@ -205,14 +249,30 @@ class WBClient(MarketplaceClient):
         raw_characteristics = card.get("characteristics") or variant.get("characteristics") or []
         attributes: dict[str, list[str]] = {}
         for characteristic in raw_characteristics:
-            name = characteristic.get("name") or str(characteristic.get("id") or "attribute")
-            value = characteristic.get("value")
-            if isinstance(value, list):
-                attributes[name] = [str(item) for item in value if item is not None]
-            elif value is None:
+            name = (
+                characteristic.get("name")
+                or characteristic.get("charcName")
+                or str(characteristic.get("id") or characteristic.get("charcID") or "attribute")
+            )
+            raw_values = (
+                characteristic.get("value")
+                or characteristic.get("charcValues")
+                or characteristic.get("characteristicValue")
+            )
+            if isinstance(raw_values, list):
+                normalized_values: list[str] = []
+                for item in raw_values:
+                    if isinstance(item, dict):
+                        value = item.get("value") or item.get("valueName") or item.get("valueNm")
+                        if value is not None:
+                            normalized_values.append(str(value))
+                    elif item is not None:
+                        normalized_values.append(str(item))
+                attributes[name] = normalized_values
+            elif raw_values is None:
                 attributes[name] = []
             else:
-                attributes[name] = [str(value)]
+                attributes[name] = [str(raw_values)]
         for option in (public_card or {}).get("options") or []:
             name = option.get("name") or "attribute"
             if name not in attributes:

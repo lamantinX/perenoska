@@ -3,6 +3,7 @@ from __future__ import annotations
 from app.clients.base import MarketplaceClient
 from app.clients.ozon import OzonClient
 from app.clients.wb import WBClient
+from app.clients.yandex_market import YandexMarketClient
 from app.config import Settings
 from app.db import Database
 from app.schemas import Marketplace
@@ -25,6 +26,8 @@ class MarketplaceClientFactory:
             return self._overrides[marketplace]
         if marketplace == Marketplace.WB:
             return WBClient(self.settings.wb_base_url, self.settings.http_timeout_seconds)
+        if marketplace == Marketplace.YANDEX_MARKET:
+            return YandexMarketClient(self.settings.yandex_market_base_url, self.settings.http_timeout_seconds)
         return OzonClient(self.settings.ozon_base_url, self.settings.http_timeout_seconds)
 
 

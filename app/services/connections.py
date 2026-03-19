@@ -15,11 +15,16 @@ class ConnectionService:
         self.vault = vault
 
     def upsert_connection(self, user_id: int, payload: ConnectionUpsert) -> ConnectionResponse:
-        credentials = (
-            {"token": payload.token}
-            if payload.marketplace == Marketplace.WB
-            else {"client_id": payload.client_id, "api_key": payload.api_key}
-        )
+        if payload.marketplace == Marketplace.WB:
+            credentials = {"token": payload.token}
+        elif payload.marketplace == Marketplace.OZON:
+            credentials = {"client_id": payload.client_id, "api_key": payload.api_key}
+        else:
+            credentials = {
+                "token": payload.token,
+                "business_id": payload.business_id,
+                "campaign_id": payload.campaign_id,
+            }
         row = self.database.upsert_connection(
             user_id=user_id,
             marketplace=payload.marketplace.value,
@@ -66,9 +71,10 @@ class ConnectionService:
         )
 
     @staticmethod
-    def _mask_value(value: str | None) -> str:
-        if not value:
+    def _mask_value(value: str | int | None) -> str:
+        if value in {None, ""}:
             return ""
+        value = str(value)
         if len(value) <= 4:
             return "*" * len(value)
         return f"{value[:2]}{'*' * (len(value) - 4)}{value[-2:]}"

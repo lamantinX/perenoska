@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import re
+from datetime import UTC, datetime
 from difflib import SequenceMatcher
 from typing import Any
 
 import httpx
 
-from app.clients.base import MarketplaceAPIError, MarketplaceClient
+from app.clients.base import MarketplaceAPIError, MarketplaceClient, get_trace_context
 from app.schemas import CategoryAttribute, CategoryNode, ProductDetails, ProductSummary
 
 
@@ -17,16 +18,32 @@ class OzonClient(MarketplaceClient):
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
 
-    async def list_products(self, credentials: dict[str, Any], *, limit: int = 50) -> list[ProductSummary]:
-        payload = {
-            "filter": {
-                "visibility": "ALL",
-            },
-            "last_id": "",
-            "limit": limit,
-        }
-        data = await self._request("POST", "/v3/product/list", credentials, json=payload)
-        items = data.get("result", {}).get("items") or data.get("items") or []
+    async def list_products(self, credentials: dict[str, Any], *, limit: int = 500) -> list[ProductSummary]:
+        items: list[dict[str, Any]] = []
+        last_id = ""
+        seen_last_ids: set[str] = set()
+        while len(items) < limit:
+            payload = {
+                "filter": {
+                    "visibility": "ALL",
+                },
+                "last_id": last_id,
+                "limit": limit - len(items),
+            }
+            data = await self._request("POST", "/v3/product/list", credentials, json=payload)
+            result = data.get("result", {}) or {}
+            batch = result.get("items") or data.get("items") or []
+            if not batch:
+                break
+            items.extend(batch)
+            next_last_id = result.get("last_id") or data.get("last_id") or ""
+            if not next_last_id or len(items) >= limit:
+                break
+            next_last_id = str(next_last_id)
+            if next_last_id == last_id or next_last_id in seen_last_ids:
+                break
+            seen_last_ids.add(next_last_id)
+            last_id = next_last_id
         if not items:
             return []
 
@@ -62,30 +79,37 @@ class OzonClient(MarketplaceClient):
             raise MarketplaceAPIError(f"Карточка Ozon {product_id} не найдена.")
         info_payload = items[0]
         details = self._parse_product_details(info_payload)
-        attributes_response = await self._request(
-            "POST",
-            "/v2/products/info/attributes",
-            credentials,
-            json={
-                "filter": {
-                    "offer_id": [details.offer_id] if details.offer_id else [],
-                    "product_id": [int(product_id)] if str(product_id).isdigit() else [],
-                    "visibility": "ALL",
+
+        try:
+            attributes_response = await self._request(
+                "POST",
+                "/v4/products/info/attributes",
+                credentials,
+                json={
+                    "filter": {
+                        "offer_id": [details.offer_id] if details.offer_id else [],
+                        "product_id": [int(product_id)] if str(product_id).isdigit() else [],
+                        "visibility": "ALL",
+                    },
+                    "limit": 1,
                 },
-                "limit": 1,
-            },
+            )
+        except MarketplaceAPIError as error:
+            if "404" not in str(error):
+                raise
+            attributes_response = {}
+
+        attribute_items = attributes_response.get("result") or []
+        if attribute_items:
+            self._merge_attribute_details(details, attribute_items[0])
+
+        description = await self._get_product_description(
+            credentials,
+            product_id=product_id,
+            offer_id=details.offer_id,
         )
-        items = attributes_response.get("result") or []
-        if items:
-            attributes: dict[str, list[str]] = {}
-            for item in items[0].get("attributes") or []:
-                values = item.get("values") or []
-                attributes[str(item.get("attribute_id") or item.get("id"))] = [
-                    str(value.get("value") or value.get("dictionary_value_id") or "")
-                    for value in values
-                    if value.get("value") is not None or value.get("dictionary_value_id") is not None
-                ]
-            details.attributes = attributes
+        if description:
+            details.description = description
         return details
 
     async def list_categories(
@@ -257,6 +281,101 @@ class OzonClient(MarketplaceClient):
             status_value = result.get("status") or result.get("state") or ("failed" if combined_errors else "processing")
         return {"status": str(status_value).lower(), "errors": combined_errors, "raw_response": data}
 
+    async def get_dictionary_values(
+        self,
+        credentials: dict[str, Any],
+        *,
+        attribute_id: int,
+        description_category_id: int,
+        type_id: int,
+        search: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        payload: dict[str, Any] = {
+            "description_category_id": description_category_id,
+            "type_id": type_id,
+            "attribute_id": attribute_id,
+            "language": "DEFAULT",
+            "limit": limit,
+            "last_value_id": 0,
+        }
+        if search:
+            payload["value"] = search
+        data = await self._request("POST", "/v1/description-category/attribute/values", credentials, json=payload)
+        items = data.get("result") or []
+        return [
+            {
+                "id": int(item.get("id") or item.get("dictionary_value_id") or 0),
+                "value": str(item.get("value") or item.get("name") or ""),
+            }
+            for item in items
+            if item.get("id") or item.get("dictionary_value_id")
+        ]
+
+    async def _get_product_description(
+        self,
+        credentials: dict[str, Any],
+        *,
+        product_id: str,
+        offer_id: str | None,
+    ) -> str | None:
+        try:
+            response = await self._request(
+                "POST",
+                "/v1/product/info/description",
+                credentials,
+                json={
+                    "offer_id": offer_id or "",
+                    "product_id": int(product_id) if str(product_id).isdigit() else 0,
+                },
+            )
+        except MarketplaceAPIError:
+            return None
+        result = response.get("result") or response
+        description = result.get("description")
+        return str(description) if description else None
+
+    def _merge_attribute_details(self, details: ProductDetails, payload: dict[str, Any]) -> None:
+        attributes: dict[str, list[str]] = {}
+        for item in payload.get("attributes") or []:
+            values = item.get("values") or []
+            attribute_key = str(item.get("name") or item.get("attribute_name") or item.get("attribute_id") or item.get("id"))
+            attributes[attribute_key] = [
+                str(value.get("value") or value.get("dictionary_value_id") or "")
+                for value in values
+                if value.get("value") is not None or value.get("dictionary_value_id") is not None
+            ]
+        if attributes:
+            details.attributes = attributes
+
+        brand_values = attributes.get("Бренд") or attributes.get("Brand") or attributes.get("85") or []
+        if brand_values:
+            details.brand = brand_values[0]
+
+        barcode = payload.get("barcode")
+        if barcode:
+            details.barcode_list = [str(barcode)]
+
+        image_payload = payload.get("images") or []
+        normalized_images = []
+        for item in image_payload:
+            if isinstance(item, dict):
+                normalized_images.append(str(item.get("file_name") or item.get("url") or item.get("src") or "").strip())
+                continue
+            normalized_images.append(str(item).strip())
+        normalized_images = [item for item in normalized_images if item]
+        if normalized_images:
+            details.images = normalized_images
+
+        details.dimensions = {
+            "height": payload.get("height") or details.dimensions.get("height"),
+            "width": payload.get("width") or details.dimensions.get("width"),
+            "depth": payload.get("depth") or details.dimensions.get("depth"),
+            "weight": payload.get("weight") or details.dimensions.get("weight"),
+            "dimension_unit": payload.get("dimension_unit") or details.dimensions.get("dimension_unit"),
+            "weight_unit": payload.get("weight_unit") or details.dimensions.get("weight_unit"),
+        }
+
     async def _request(
         self,
         method: str,
@@ -265,8 +384,23 @@ class OzonClient(MarketplaceClient):
         **kwargs: Any,
     ) -> dict[str, Any]:
         headers = {"Client-Id": credentials["client_id"], "Api-Key": credentials["api_key"]}
+        trace = get_trace_context()
+        started_at = datetime.now(UTC)
         async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
             response = await client.request(method, path, headers=headers, **kwargs)
+        if trace is not None:
+            trace.log_event(
+                event_type="http",
+                operation=f"ozon:{method} {path}",
+                request_url=f"{self.base_url}{path}",
+                request_headers=headers,
+                request_body=kwargs.get("json") or kwargs.get("params"),
+                response_headers=dict(response.headers),
+                response_body=response.json() if response.content else {},
+                status_code=response.status_code,
+                duration_ms=int((datetime.now(UTC) - started_at).total_seconds() * 1000),
+                error_text=response.text if response.is_error else None,
+            )
         if response.is_error:
             raise MarketplaceAPIError(f"Ozon API error {response.status_code}: {response.text}")
         if not response.content:
@@ -333,7 +467,7 @@ class OzonClient(MarketplaceClient):
     @staticmethod
     def _token_stems(value: str) -> set[str]:
         stems: set[str] = set()
-        for token in re.findall(r"[a-zA-Zа-яА-Я0-9]+", value.lower()):
+        for token in re.findall(r"[0-9A-Za-zА-Яа-яЁё]+", value.lower()):
             stem = re.sub(
                 r"(ами|ями|ого|его|ому|ему|ах|ях|ов|ев|ей|ой|ий|ый|ая|яя|ое|ее|ые|ие|ам|ям|ом|ем|у|ю|а|я|ы|и|е|о)$",
                 "",

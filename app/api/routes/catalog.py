@@ -11,7 +11,7 @@ router = APIRouter(prefix="/catalog", tags=["catalog"])
 @router.get("/products", response_model=list[ProductSummary])
 async def list_products(
     marketplace: Marketplace,
-    limit: int = Query(default=50, ge=1, le=100),
+    limit: int = Query(default=500, ge=1, le=1000),
     user=Depends(get_current_user),
     catalog_service=Depends(get_catalog_service),
 ) -> list[ProductSummary]:

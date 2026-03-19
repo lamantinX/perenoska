@@ -14,6 +14,7 @@ class Settings:
     wb_base_url: str
     ozon_base_url: str
     http_timeout_seconds: float
+    yandex_market_base_url: str = "https://api.partner.market.yandex.ru"
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -25,6 +26,10 @@ class Settings:
             session_ttl_hours=int(os.getenv("APP_SESSION_TTL_HOURS", "24")),
             wb_base_url=os.getenv("WB_BASE_URL", "https://content-api.wildberries.ru").rstrip("/"),
             ozon_base_url=os.getenv("OZON_BASE_URL", "https://api-seller.ozon.ru").rstrip("/"),
+            yandex_market_base_url=os.getenv(
+                "YANDEX_MARKET_BASE_URL",
+                "https://api.partner.market.yandex.ru",
+            ).rstrip("/"),
             http_timeout_seconds=float(os.getenv("HTTP_TIMEOUT_SECONDS", "30")),
         )
 

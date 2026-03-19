@@ -10,7 +10,7 @@ class CatalogService:
         self.connection_service = connection_service
         self.client_factory = client_factory
 
-    async def list_products(self, user_id: int, marketplace: Marketplace, limit: int = 50) -> list[ProductSummary]:
+    async def list_products(self, user_id: int, marketplace: Marketplace, limit: int = 500) -> list[ProductSummary]:
         credentials = self.connection_service.get_credentials(user_id, marketplace)
         client = self.client_factory.get_client(marketplace)
         return await client.list_products(credentials, limit=limit)
