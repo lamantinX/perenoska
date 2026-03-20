@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.api.deps import get_catalog_service, get_current_user
 from app.schemas import CategoryAttribute, CategoryNode, Marketplace, ProductDetails, ProductSummary
@@ -15,7 +15,10 @@ async def list_products(
     user=Depends(get_current_user),
     catalog_service=Depends(get_catalog_service),
 ) -> list[ProductSummary]:
-    return await catalog_service.list_products(user["id"], marketplace, limit)
+    try:
+        return await catalog_service.list_products(user["id"], marketplace, limit)
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
 
 
 @router.get("/products/{product_id}", response_model=ProductDetails)
