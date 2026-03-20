@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 scripts/gen_screens.py)",
+      "Bash(python3 scripts/debug_stitch.py)",
+      "Bash(python3 -c \":*)",
+      "Bash(taskkill /F /IM python.exe /T)",
+      "mcp__Claude_Preview__preview_start",
+      "Read(//c/Users/zelen/OneDrive/Рабочий стол/projects/perenoska/**)",
+      "Bash(python scripts/gen_kabinet.py)",
+      "Bash(python -m py_compile app/main.py)",
+      "Bash(python -c \"from app.api.routes import oauth; print\\(''OK''\\)\")",
+      "Bash(python -c \"from app.main import app; print\\(''App loaded OK''\\)\")",
+      "Bash(python -c \":*)",
+      "Bash(grep -n 'img src=\"\"${img}\"\"' \"C:/Users/zelen/OneDrive/Рабочий стол/projects/perenoska/.claude/worktrees/eager-jepsen/app/static/index.html\")",
+      "Bash(winget install:*)",
+      "Bash(export PATH=\"$PATH:/c/Program Files/GitHub CLI\")",
+      "Bash(gh --version)",
+      "Bash(gh auth:*)",
+      "Bash(rm app/static/app.css app/static/app.js)",
+      "Bash(rm .stitch/designs/*.html .stitch/designs/*.png)",
+      "Bash(rm scripts/debug_stitch.py scripts/gen_screens.py)"
+    ]
+  }
+}
