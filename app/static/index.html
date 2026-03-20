@@ -129,7 +129,20 @@
         <p class="text-lg text-on-surface-variant leading-relaxed mb-10 max-w-2xl">
           Вставьте ссылку на магазин или товар — мы сделаем всё остальное. Автоматический парсинг и адаптация под требования любой площадки.
         </p>
-        <div class="bg-surface-container-lowest p-2 rounded-2xl shadow-sm border border-outline-variant/10 mb-5">
+        <!-- Input mode tabs -->
+        <div class="flex flex-wrap gap-2 mb-3">
+          <button id="tab-url" onclick="switchInputTab('url')" class="flex items-center gap-1.5 py-2 px-4 rounded-full text-sm font-semibold bg-primary text-white shadow-sm transition-all">
+            <span class="material-symbols-outlined text-[16px]">link</span>По ссылке
+          </button>
+          <button id="tab-wb-api" onclick="switchInputTab('wb-api')" class="flex items-center gap-1.5 py-2 px-4 rounded-full text-sm font-semibold bg-surface-container text-on-surface-variant hover:bg-surface-container-high transition-all">
+            <span class="material-symbols-outlined text-[16px]">key</span>Кабинет WB
+          </button>
+          <button id="tab-ozon-api" onclick="switchInputTab('ozon-api')" class="flex items-center gap-1.5 py-2 px-4 rounded-full text-sm font-semibold bg-surface-container text-on-surface-variant hover:bg-surface-container-high transition-all">
+            <span class="material-symbols-outlined text-[16px]">key</span>Кабинет Ozon
+          </button>
+        </div>
+        <!-- URL input panel -->
+        <div id="url-panel" class="bg-surface-container-lowest p-2 rounded-2xl shadow-sm border border-outline-variant/10 mb-5">
           <div class="flex flex-col md:flex-row gap-3">
             <div class="flex-grow flex items-center px-4 bg-surface-container-low rounded-xl focus-within:ring-2 focus-within:ring-primary/40 transition-all">
               <span class="material-symbols-outlined text-outline mr-3 flex-shrink-0">link</span>
@@ -141,6 +154,45 @@
             </button>
           </div>
         </div>
+        <!-- WB API panel -->
+        <div id="wb-api-panel" class="hidden bg-surface-container-lowest p-2 rounded-2xl shadow-sm border border-outline-variant/10 mb-3">
+          <div class="flex flex-col md:flex-row gap-3">
+            <div class="flex-grow flex items-center px-4 bg-surface-container-low rounded-xl focus-within:ring-2 focus-within:ring-[#C41C7E]/40 transition-all">
+              <span class="material-symbols-outlined text-outline mr-3 flex-shrink-0">key</span>
+              <input id="wb-token-input" class="w-full h-14 bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-outline font-medium text-base" placeholder="API-токен из Wildberries Seller..." type="password"/>
+            </div>
+            <button id="wb-fetch-btn" onclick="fetchWbCabinet()" class="bg-gradient-to-br from-[#C41C7E] to-[#e91e8c] text-white px-10 h-14 rounded-full font-semibold shadow-lg shadow-pink-200 hover:shadow-pink-300 active:scale-95 transition-all flex items-center justify-center gap-2 whitespace-nowrap">
+              <span id="wb-fetch-btn-text">Загрузить товары</span>
+              <span id="wb-fetch-spinner" class="material-symbols-outlined text-[20px] animate-spin hidden">progress_activity</span>
+            </button>
+          </div>
+          <div class="mt-2 px-2 pb-1 text-xs text-on-surface-variant flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-[14px] text-outline">info</span>
+            <a href="https://seller.wildberries.ru/supplier-settings/access-to-new-api" target="_blank" class="text-primary hover:underline font-medium ml-1">Настройки продавца → Доступ к API</a>
+          </div>
+        </div>
+        <!-- Ozon API panel -->
+        <div id="ozon-api-panel" class="hidden bg-surface-container-lowest p-4 rounded-2xl shadow-sm border border-outline-variant/10 mb-3">
+          <div class="grid md:grid-cols-2 gap-3 mb-3">
+            <div class="flex items-center px-4 bg-surface-container-low rounded-xl focus-within:ring-2 focus-within:ring-[#005BFF]/40 transition-all">
+              <span class="material-symbols-outlined text-outline mr-3 flex-shrink-0 text-[18px]">tag</span>
+              <input id="ozon-client-id-input" class="w-full h-12 bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-outline font-medium text-sm" placeholder="Client ID (числовой)" type="text" autocomplete="off"/>
+            </div>
+            <div class="flex items-center px-4 bg-surface-container-low rounded-xl focus-within:ring-2 focus-within:ring-[#005BFF]/40 transition-all">
+              <span class="material-symbols-outlined text-outline mr-3 flex-shrink-0 text-[18px]">key</span>
+              <input id="ozon-api-key-input" class="w-full h-12 bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-outline font-medium text-sm" placeholder="API Key (uuid)" type="password" autocomplete="off"/>
+            </div>
+          </div>
+          <button id="ozon-fetch-btn" onclick="fetchOzonCabinet()" class="w-full py-3.5 bg-gradient-to-br from-[#005BFF] to-[#0073ff] text-white rounded-xl font-semibold shadow-md shadow-blue-200 hover:shadow-blue-300 active:scale-95 transition-all flex items-center justify-center gap-2">
+            <span id="ozon-fetch-btn-text">Загрузить товары из Ozon</span>
+            <span id="ozon-fetch-spinner" class="material-symbols-outlined text-[20px] animate-spin hidden">progress_activity</span>
+          </button>
+          <div class="mt-2 px-1 text-xs text-on-surface-variant flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-[14px] text-outline">info</span>
+            <a href="https://seller.ozon.ru/app/settings/api-keys" target="_blank" class="text-[#005BFF] hover:underline font-medium ml-1">Ozon Seller → Настройки → API → Ключи администратора</a>
+          </div>
+        </div>
+        <!-- Yandex Market API panel -->
         <div id="fetch-error" class="hidden mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm font-medium"></div>
         <div class="flex flex-wrap gap-3">
           <div class="flex items-center h-8 px-4 rounded-full bg-[#C41C7E]/10 text-[#C41C7E]">
@@ -242,7 +294,7 @@
           <div class="p-6">
             <div class="flex gap-5 mb-6">
               <div class="w-36 h-48 rounded-lg overflow-hidden bg-surface-container-low flex-shrink-0 flex items-center justify-center">
-                <img id="s3-src-img" class="w-full h-full object-cover hidden" src="" alt=""/>
+                <img id="s3-src-img" class="w-full h-full object-cover hidden" src="" alt="" onerror="wbBasketFallback(this)"/>
                 <span id="s3-src-img-placeholder" class="material-symbols-outlined text-5xl text-outline">image</span>
               </div>
               <div class="flex flex-col gap-2 min-w-0">
@@ -273,7 +325,7 @@
           <div class="p-6">
             <div class="flex gap-5 mb-6">
               <div class="w-36 h-48 rounded-lg overflow-hidden bg-surface-container-low flex-shrink-0 relative flex items-center justify-center">
-                <img id="s3-dst-img" class="w-full h-full object-cover hidden" src="" alt=""/>
+                <img id="s3-dst-img" class="w-full h-full object-cover hidden" src="" alt="" onerror="wbBasketFallback(this)"/>
                 <span id="s3-dst-img-placeholder" class="material-symbols-outlined text-5xl text-outline">image</span>
                 <div class="absolute inset-0 bg-indigo-500/10 flex items-end justify-end p-2">
                   <div class="bg-white/90 p-1 rounded-full shadow-sm">
@@ -766,6 +818,167 @@ document.getElementById('url-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') fetchProducts();
 });
 
+// ===== SCREEN 1: INPUT TABS =====
+const _TAB_ACTIVE = 'flex items-center gap-1.5 py-2 px-4 rounded-full text-sm font-semibold bg-primary text-white shadow-sm transition-all';
+const _TAB_INACTIVE = 'flex items-center gap-1.5 py-2 px-4 rounded-full text-sm font-semibold bg-surface-container text-on-surface-variant hover:bg-surface-container-high transition-all';
+const _TABS = ['url', 'wb-api', 'ozon-api'];
+
+function switchInputTab(tab) {
+  _TABS.forEach(t => {
+    const btn = document.getElementById('tab-' + t);
+    const panel = document.getElementById(t === 'url' ? 'url-panel' : t + '-panel');
+    if (btn) btn.className = t === tab ? _TAB_ACTIVE : _TAB_INACTIVE;
+    if (panel) panel.classList.toggle('hidden', t !== tab);
+  });
+  document.getElementById('fetch-error').classList.add('hidden');
+}
+
+async function fetchWbCabinet() {
+  const token = document.getElementById('wb-token-input').value.trim();
+  const errEl = document.getElementById('fetch-error');
+  errEl.classList.add('hidden');
+  if (!token) { errEl.textContent = 'Введите WB API-токен'; errEl.classList.remove('hidden'); return; }
+  if (!state.token) {
+    errEl.textContent = 'Войдите в аккаунт, чтобы использовать API Wildberries';
+    errEl.classList.remove('hidden');
+    openAuthModal('login');
+    return;
+  }
+  const btn = document.getElementById('wb-fetch-btn');
+  const txt = document.getElementById('wb-fetch-btn-text');
+  const spin = document.getElementById('wb-fetch-spinner');
+  btn.disabled = true; txt.textContent = 'Загружаю...'; spin.classList.remove('hidden');
+  try {
+    // Save WB token
+    const saveRes = await fetch('/api/v1/connections/wb', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.token}` },
+      body: JSON.stringify({ marketplace: 'wb', token })
+    });
+    if (!saveRes.ok) {
+      const err = await saveRes.json().catch(() => ({}));
+      throw new Error(err.detail || 'Не удалось сохранить токен WB');
+    }
+    // Fetch products from cabinet
+    const prodRes = await fetch('/api/v1/catalog/products?marketplace=wb&limit=100', {
+      headers: { 'Authorization': `Bearer ${state.token}` }
+    });
+    let products;
+    try { products = await prodRes.json(); } catch { throw new Error('Ошибка сервера. Проверьте токен WB.'); }
+    if (!prodRes.ok) throw new Error(products.detail || 'Ошибка загрузки товаров WB');
+    state.marketplace = 'wb';
+    state.products = products;
+    renderScreen2({ marketplace: 'wb', products, total: products.length });
+    goToScreen(2);
+  } catch (e) {
+    errEl.textContent = e.message;
+    errEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false; txt.textContent = 'Загрузить товары'; spin.classList.add('hidden');
+  }
+}
+
+async function fetchOzonCabinet() {
+  const clientId = document.getElementById('ozon-client-id-input').value.trim();
+  const apiKey = document.getElementById('ozon-api-key-input').value.trim();
+  const errEl = document.getElementById('fetch-error');
+  errEl.classList.add('hidden');
+  if (!clientId || !apiKey) { errEl.textContent = 'Введите Client ID и API Key от Ozon'; errEl.classList.remove('hidden'); return; }
+  if (!state.token) { errEl.textContent = 'Войдите в аккаунт, чтобы использовать API Ozon'; errEl.classList.remove('hidden'); openAuthModal('login'); return; }
+  const btn = document.getElementById('ozon-fetch-btn');
+  const txt = document.getElementById('ozon-fetch-btn-text');
+  const spin = document.getElementById('ozon-fetch-spinner');
+  btn.disabled = true; txt.textContent = 'Загружаю...'; spin.classList.remove('hidden');
+  try {
+    const saveRes = await fetch('/api/v1/connections/ozon', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.token}` },
+      body: JSON.stringify({ marketplace: 'ozon', client_id: clientId, api_key: apiKey })
+    });
+    if (!saveRes.ok) { const e = await saveRes.json().catch(() => ({})); throw new Error(e.detail || 'Не удалось сохранить ключи Ozon'); }
+    const prodRes = await fetch('/api/v1/catalog/products?marketplace=ozon&limit=100', {
+      headers: { 'Authorization': `Bearer ${state.token}` }
+    });
+    let products; try { products = await prodRes.json(); } catch { throw new Error('Ошибка сервера. Проверьте ключи Ozon.'); }
+    if (!prodRes.ok) throw new Error(products.detail || 'Ошибка загрузки товаров Ozon');
+    state.marketplace = 'ozon';
+    state.products = products;
+    renderScreen2({ marketplace: 'ozon', products, total: products.length });
+    goToScreen(2);
+  } catch (e) {
+    errEl.textContent = e.message; errEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false; txt.textContent = 'Загрузить товары из Ozon'; spin.classList.add('hidden');
+  }
+}
+
+async function fetchYmCabinet() {
+  const token = document.getElementById('ym-token-input').value.trim();
+  const businessId = document.getElementById('ym-business-id-input').value.trim();
+  const campaignId = document.getElementById('ym-campaign-id-input').value.trim();
+  const errEl = document.getElementById('fetch-error');
+  errEl.classList.add('hidden');
+  if (!token || !businessId || !campaignId) { errEl.textContent = 'Введите OAuth-токен, Business ID и Campaign ID'; errEl.classList.remove('hidden'); return; }
+  if (!state.token) { errEl.textContent = 'Войдите в аккаунт, чтобы использовать API Яндекс.Маркет'; errEl.classList.remove('hidden'); openAuthModal('login'); return; }
+  const btn = document.getElementById('ym-fetch-btn');
+  const txt = document.getElementById('ym-fetch-btn-text');
+  const spin = document.getElementById('ym-fetch-spinner');
+  btn.disabled = true; txt.textContent = 'Загружаю...'; spin.classList.remove('hidden');
+  try {
+    const saveRes = await fetch('/api/v1/connections/yandex_market', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.token}` },
+      body: JSON.stringify({ marketplace: 'yandex_market', token, business_id: parseInt(businessId), campaign_id: parseInt(campaignId) })
+    });
+    if (!saveRes.ok) { const e = await saveRes.json().catch(() => ({})); throw new Error(e.detail || 'Не удалось сохранить данные Яндекс.Маркет'); }
+    const prodRes = await fetch('/api/v1/catalog/products?marketplace=yandex_market&limit=100', {
+      headers: { 'Authorization': `Bearer ${state.token}` }
+    });
+    let products; try { products = await prodRes.json(); } catch { throw new Error('Ошибка сервера. Проверьте данные Яндекс.Маркет.'); }
+    if (!prodRes.ok) throw new Error(products.detail || 'Ошибка загрузки товаров Яндекс.Маркет');
+    state.marketplace = 'yandex_market';
+    state.products = products;
+    renderScreen2({ marketplace: 'yandex_market', products, total: products.length });
+    goToScreen(2);
+  } catch (e) {
+    errEl.textContent = e.message; errEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false; txt.textContent = 'Загрузить товары из Яндекс.Маркет'; spin.classList.add('hidden');
+  }
+}
+
+// WB basket resolver — probes ALL baskets 01-30 in parallel, sets the first one that loads
+function wbLoadImg(imgEl, path) {
+  if (imgEl._wbResolving) return;
+  imgEl._wbResolving = true;
+  let resolved = false;
+  for (let n = 1; n <= 30; n++) {
+    const test = new Image();
+    test.onload = () => {
+      if (resolved) return;
+      resolved = true;
+      imgEl.src = test.src;
+      imgEl.classList.remove('hidden');
+      const ph = document.getElementById(imgEl.id + '-placeholder');
+      if (ph) ph.classList.add('hidden');
+      imgEl._wbResolving = false;
+    };
+    test.src = `https://basket-${String(n).padStart(2,'0')}.wbbasket.ru${path}`;
+  }
+}
+
+// Called from onerror on img tags — extract path and start parallel probe
+function wbBasketFallback(img) {
+  const m = img.src.match(/basket-\d+\.wbbasket\.ru(\/vol\d+\/part\d+\/\d+\/images\/big\/1\.webp)/);
+  if (!m) return;
+  img.onerror = null; // prevent re-triggering
+  wbLoadImg(img, m[1]);
+}
+
+function proxyImg(url) {
+  return url || '';
+}
+
 // ===== SCREEN 2: PRODUCTS =====
 function renderScreen2(data) {
   state.selectedIds.clear();
@@ -786,7 +999,7 @@ function renderProductGrid(products) {
   empty.classList.add('hidden');
   const isSelected = id => state.selectedIds.has(id);
   grid.innerHTML = products.map(p => {
-    const img = p.images && p.images[0] ? p.images[0] : '';
+    const img = p.images && p.images[0] ? proxyImg(p.images[0]) : '';
     const price = p.price ? Number(p.price).toLocaleString('ru') + ' ₽' : '';
     const cat = p.category_name || '';
     const sel = isSelected(p.id);
@@ -797,7 +1010,7 @@ function renderProductGrid(products) {
         </div>
       </div>
       ${img
-        ? `<div class="h-52 bg-surface-container-low overflow-hidden"><img src="${img}" alt="${escHtml(p.title)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy"/></div>`
+        ? `<div class="h-52 bg-surface-container-low overflow-hidden"><img src="${img}" alt="${escHtml(p.title)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" onerror="wbBasketFallback(this)"/></div>`
         : `<div class="h-52 bg-surface-container flex items-center justify-center"><span class="material-symbols-outlined text-5xl text-outline">image</span></div>`}
       <div class="p-5">
         ${cat ? `<span class="text-[10px] font-bold uppercase tracking-widest text-outline mb-1 block">${escHtml(cat)}</span>` : ''}
@@ -843,41 +1056,83 @@ function goToPreview() {
   const selected = state.products.filter(p => state.selectedIds.has(p.id));
   if (!selected.length) return;
   const p = selected[0];
-  const img = p.images && p.images[0] ? p.images[0] : '';
-  const price = p.price ? Number(p.price).toLocaleString('ru') + ' ₽' : '';
+  const raw = p.raw || {};
+  const img = p.images && p.images[0] ? proxyImg(p.images[0]) : '';
+
+  // Price: from p.price, raw.priceU, or nested sizes price
+  const sz0 = (raw.sizes || [])[0];
+  const priceNum = p.price ? Number(p.price)
+    : raw.priceU ? Math.round(raw.priceU / 100)
+    : sz0?.price?.product ? Math.round(sz0.price.product / 100)
+    : null;
+  const origPriceNum = sz0?.price?.basic ? Math.round(sz0.price.basic / 100) : null;
+  const price = priceNum ? priceNum.toLocaleString('ru') + ' ₽' : '';
+  const origPrice = (origPriceNum && origPriceNum !== priceNum) ? origPriceNum.toLocaleString('ru') + ' ₽' : '';
+
+  const brand = raw.brand || p.category_name || '';
+  const category = raw.entity || raw.subjectName || raw.subjectRootName || '';
+  const desc = p.description || raw.description || '';
+  const currency = p.currency || 'RUB';
 
   function setImg(imgEl, placeholderEl, src) {
-    if (src) {
-      imgEl.src = src;
-      imgEl.classList.remove('hidden');
-      placeholderEl.classList.add('hidden');
-    } else {
-      imgEl.classList.add('hidden');
-      placeholderEl.classList.remove('hidden');
-    }
+    if (src) { imgEl.src = src; imgEl.classList.remove('hidden'); placeholderEl.classList.add('hidden'); }
+    else { imgEl.classList.add('hidden'); placeholderEl.classList.remove('hidden'); }
   }
   setImg(document.getElementById('s3-src-img'), document.getElementById('s3-src-img-placeholder'), img);
   setImg(document.getElementById('s3-dst-img'), document.getElementById('s3-dst-img-placeholder'), img);
 
+  // Source card
   document.getElementById('s3-src-title').textContent = p.title;
   document.getElementById('s3-src-price').textContent = price;
-  document.getElementById('s3-src-desc').textContent = p.description || 'Описание отсутствует';
-  document.getElementById('s3-dst-title').textContent = p.title + ' — адаптировано для Ozon';
+  document.getElementById('s3-src-desc').textContent = desc || 'Описание отсутствует';
+
+  // Collect sizes names
+  const sizeNames = (raw.sizes || []).map(s => s.origName || s.name).filter(Boolean);
+
+  const srcRows = [
+    ['ID товара', p.id],
+    brand ? ['Бренд', brand] : null,
+    category ? ['Категория', category] : null,
+    (raw.supplier && raw.supplier !== brand) ? ['Продавец', raw.supplier] : null,
+    price ? ['Цена', price + (origPrice ? ` (было ${origPrice})` : '')] : null,
+    ['Валюта', currency],
+    raw.rating ? ['Рейтинг', `${raw.rating} ★ (${(raw.feedbacks || 0).toLocaleString('ru')} отзывов)`] : null,
+    sizeNames.length ? ['Размеры', sizeNames.slice(0, 6).join(', ')] : null,
+    raw.weight ? ['Вес, кг', raw.weight] : null,
+    raw.volume ? ['Объём, л', raw.volume] : null,
+  ].filter(Boolean);
+  (raw.options || []).slice(0, 8).forEach(o => { if (o.name && o.value) srcRows.push([o.name, o.value]); });
+
+  document.getElementById('s3-src-attrs').innerHTML = srcRows.map(([k, v]) =>
+    `<div class="text-slate-500 text-sm">${escHtml(k)}</div><div class="font-medium text-sm">${escHtml(String(v))}</div>`
+  ).join('');
+
+  // Destination card
+  document.getElementById('s3-dst-title').textContent = p.title;
   document.getElementById('s3-dst-price').textContent = price;
 
-  const raw = p.raw || {};
-  document.getElementById('s3-src-attrs').innerHTML = `
-    <div class="text-slate-500">ID товара</div><div class="font-medium">${escHtml(p.id)}</div>
-    <div class="text-slate-500">Бренд</div><div class="font-medium">${escHtml(raw.brand || p.category_name || '—')}</div>
-    <div class="text-slate-500">Цена</div><div class="font-medium">${price || '—'}</div>
-    <div class="text-slate-500">Валюта</div><div class="font-medium">RUB</div>
-  `;
-  document.getElementById('s3-dst-attrs').innerHTML = ['Тип товара', 'Категория Ozon', 'НДС', 'Валюта'].map(label =>
+  const dstRows = [
+    { label: 'Категория Ozon', value: category || 'Сопоставится автоматически' },
+    { label: 'Бренд', value: brand || '—' },
+    price ? { label: 'Цена', value: price } : null,
+    origPrice ? { label: 'Старая цена', value: origPrice } : null,
+    { label: 'Валюта', value: currency },
+    { label: 'НДС', value: '20%' },
+    sizeNames.length ? { label: 'Размеры', value: sizeNames.slice(0, 6).join(', ') } : null,
+    raw.weight ? { label: 'Вес, кг', value: String(raw.weight) } : null,
+    raw.volume ? { label: 'Объём, л', value: String(raw.volume) } : null,
+  ].filter(Boolean);
+  (raw.options || []).slice(0, 5).forEach(o => {
+    if (o.name && o.value) dstRows.push({ label: o.name, value: String(o.value) });
+  });
+
+  document.getElementById('s3-dst-attrs').innerHTML = dstRows.map(({label, value}) =>
     `<div class="flex items-center justify-between p-3 bg-surface-container-low rounded-lg">
-      <div><span class="text-[10px] font-bold text-slate-400 uppercase tracking-tight block">${label}</span><span class="text-sm font-semibold">Автоматически</span></div>
+      <div><span class="text-[10px] font-bold text-slate-400 uppercase tracking-tight block">${escHtml(label)}</span><span class="text-sm font-semibold">${escHtml(value)}</span></div>
       <span class="material-symbols-outlined text-emerald-500" style="font-variation-settings:'FILL' 1">check_circle</span>
     </div>`
   ).join('');
+
   goToScreen(3);
 }
 
@@ -896,40 +1151,127 @@ async function startOzonOAuth() {
   }
 }
 
-function connectViaAPI() {
+async function connectViaAPI() {
   const clientId = document.getElementById('api-client-id').value.trim();
   const apiKey = document.getElementById('api-key').value.trim();
   if (!clientId || !apiKey) { alert('Введите Client ID и API Key'); return; }
+
+  if (!state.token) {
+    openAuthModal('login');
+    return;
+  }
+
+  const total = Math.max(state.selectedIds.size, 1);
   goToScreen(5);
-  startTransferSimulation();
+  _resetTransferSteps();
+  updateCircularProgress(0, 0, total);
+
+  // Step 0: Сохранение ключей Ozon
+  _setTransferStep(0, 'active');
+  try {
+    const r = await fetch('/api/v1/connections/ozon', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.token}` },
+      body: JSON.stringify({ marketplace: 'ozon', client_id: clientId, api_key: apiKey })
+    });
+    if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || 'Ошибка сохранения ключей'); }
+  } catch (e) { _setTransferStep(0, 'error', e.message); return; }
+  _setTransferStep(0, 'done');
+
+  // Step 1: Запуск переноса
+  _setTransferStep(1, 'active');
+  let jobId;
+  try {
+    const overrides = {};
+    state.products.filter(p => state.selectedIds.has(p.id)).forEach(p => { overrides[p.id] = p.raw || {}; });
+    const r = await fetch('/api/v1/transfers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.token}` },
+      body: JSON.stringify({
+        source_marketplace: state.marketplace || 'wb',
+        target_marketplace: 'ozon',
+        product_ids: [...state.selectedIds],
+        product_overrides: overrides,
+      })
+    });
+    let job; try { job = await r.json(); } catch { throw new Error('Ошибка сервера'); }
+    if (!r.ok) throw new Error(job.detail || 'Ошибка запуска переноса');
+    jobId = job.id;
+  } catch (e) { _setTransferStep(1, 'error', e.message); return; }
+  _setTransferStep(1, 'done');
+  updateCircularProgress(40, Math.round(total * 0.4), total);
+
+  // Steps 2-4: Поллинг статуса задачи
+  _setTransferStep(2, 'active');
+  await _pollTransferJob(jobId, total);
 }
 
-// ===== SCREEN 5: PROGRESS =====
-function startTransferSimulation() {
-  const total = Math.max(state.selectedIds.size, 1);
-  const durations = [1200, 2200, 3000, 2000, 1500];
-  const steps = document.querySelectorAll('.transfer-step');
-  steps.forEach(s => {
+function _resetTransferSteps() {
+  document.querySelectorAll('.transfer-step').forEach(s => {
     s.querySelector('.step-icon').className = 'step-icon w-8 h-8 rounded-full bg-surface-container flex items-center justify-center flex-shrink-0 text-outline';
+    s.querySelector('.step-icon').innerHTML = s.querySelector('.step-icon').innerHTML;
     s.querySelector('.step-status').textContent = 'В очереди';
     s.querySelector('.step-status').className = 'step-status text-xs text-outline font-medium';
   });
-  updateCircularProgress(0, 0, total);
+}
 
+function _setTransferStep(idx, st, msg) {
+  const steps = document.querySelectorAll('.transfer-step');
+  if (idx >= steps.length) return;
+  const s = steps[idx];
+  const icon = s.querySelector('.step-icon');
+  const status = s.querySelector('.step-status');
+  if (st === 'active') {
+    icon.className = 'step-icon w-8 h-8 rounded-full bg-primary-fixed flex items-center justify-center flex-shrink-0 text-primary animate-spin';
+    status.textContent = 'Выполняется...'; status.className = 'step-status text-xs text-primary font-bold';
+  } else if (st === 'done') {
+    icon.className = 'step-icon w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 text-emerald-600';
+    icon.innerHTML = '<span class="material-symbols-outlined text-lg" style="font-variation-settings:\'wght\' 700">done_all</span>';
+    status.textContent = 'Завершено'; status.className = 'step-status text-xs text-emerald-600 font-medium';
+  } else if (st === 'error') {
+    icon.className = 'step-icon w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 text-red-600';
+    icon.innerHTML = '<span class="material-symbols-outlined text-lg">error</span>';
+    status.textContent = msg || 'Ошибка'; status.className = 'step-status text-xs text-red-600 font-medium';
+  }
+}
+
+async function _pollTransferJob(jobId, total) {
+  const statusPct = { pending: 50, submitted: 60, processing: 80, completed: 100, failed: 0 };
+  for (let i = 0; i < 60; i++) {
+    await new Promise(r => setTimeout(r, 2500));
+    try {
+      const r = await fetch(`/api/v1/transfers/${jobId}/sync`, {
+        method: 'POST', headers: { 'Authorization': `Bearer ${state.token}` }
+      });
+      let job; try { job = await r.json(); } catch { continue; }
+      if (!r.ok) continue;
+      const pct = statusPct[job.status] ?? 50;
+      updateCircularProgress(pct, Math.round(total * pct / 100), total);
+      if (job.status === 'completed') {
+        _setTransferStep(2, 'done'); _setTransferStep(3, 'done'); _setTransferStep(4, 'done');
+        setTimeout(() => { renderScreen6(total); goToScreen(6); }, 600);
+        return;
+      }
+      if (job.status === 'failed') {
+        _setTransferStep(2, 'error', job.error_message || 'Ошибка при переносе'); return;
+      }
+    } catch { /* continue polling */ }
+  }
+  _setTransferStep(2, 'error', 'Превышено время ожидания ответа от Ozon');
+}
+
+// ===== SCREEN 5: PROGRESS (simulation — used when not logged in) =====
+function startTransferSimulation() {
+  const total = Math.max(state.selectedIds.size, 1);
+  const durations = [1200, 2200, 3000, 2000, 1500];
+  _resetTransferSteps();
+  updateCircularProgress(0, 0, total);
   function activateStep(idx) {
-    if (idx >= steps.length) { setTimeout(() => { renderScreen6(total); goToScreen(6); }, 500); return; }
-    const s = steps[idx];
-    s.querySelector('.step-icon').className = 'step-icon w-8 h-8 rounded-full bg-primary-fixed flex items-center justify-center flex-shrink-0 text-primary animate-spin';
-    s.querySelector('.step-status').textContent = 'Выполняется...';
-    s.querySelector('.step-status').className = 'step-status text-xs text-primary font-bold';
+    if (idx >= document.querySelectorAll('.transfer-step').length) { setTimeout(() => { renderScreen6(total); goToScreen(6); }, 500); return; }
+    _setTransferStep(idx, 'active');
     setTimeout(() => {
-      s.querySelector('.step-icon').className = 'step-icon w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 text-emerald-600';
-      s.querySelector('.step-icon').innerHTML = '<span class="material-symbols-outlined text-lg" style="font-variation-settings:\'wght\' 700">done_all</span>';
-      s.querySelector('.step-status').textContent = 'Завершено';
-      s.querySelector('.step-status').className = 'step-status text-xs text-emerald-600 font-medium';
-      const pct = Math.round((idx + 1) / steps.length * 100);
-      const done = Math.round((idx + 1) / steps.length * total);
-      updateCircularProgress(pct, done, total);
+      _setTransferStep(idx, 'done');
+      updateCircularProgress(Math.round((idx+1)/5*100), Math.round((idx+1)/5*total), total);
       activateStep(idx + 1);
     }, durations[idx]);
   }
@@ -948,11 +1290,11 @@ function renderScreen6(total) {
   document.getElementById('s6-subtitle').textContent = total + ' ' + pluralProducts(total) + ' теперь доступны на Ozon';
   const selected = state.products.filter(p => state.selectedIds.has(p.id));
   document.getElementById('s6-products-list').innerHTML = selected.slice(0, 5).map(p => {
-    const img = p.images && p.images[0] ? p.images[0] : '';
+    const img = p.images && p.images[0] ? proxyImg(p.images[0]) : '';
     return `<div class="flex items-center justify-between">
       <div class="flex items-center gap-4">
         <div class="w-14 h-14 rounded-lg bg-surface-container-low overflow-hidden flex-shrink-0 flex items-center justify-center">
-          ${img ? `<img src="${img}" alt="${escHtml(p.title)}" class="w-full h-full object-cover" loading="lazy"/>` : '<span class="material-symbols-outlined text-3xl text-outline">image</span>'}
+          ${img ? `<img src="${img}" alt="${escHtml(p.title)}" class="w-full h-full object-cover" loading="lazy" onerror="wbBasketFallback(this)"/>` : '<span class="material-symbols-outlined text-3xl text-outline">image</span>'}
         </div>
         <div><h3 class="font-semibold text-on-surface line-clamp-1">${escHtml(p.title)}</h3><p class="text-xs text-on-surface-variant">ID: ${escHtml(p.id)}</p></div>
       </div>

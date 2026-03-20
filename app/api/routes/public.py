@@ -4,13 +4,80 @@ import re
 from urllib.parse import urlparse
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.api.deps import get_catalog_service, get_connection_service, get_auth_service
 from app.schemas import Marketplace, ProductSummary, PublicFetchRequest, PublicFetchResponse
 
 router = APIRouter(prefix="/public", tags=["public"])
+
+# Allowed image domains for proxy (security whitelist)
+_ALLOWED_IMAGE_HOSTS = {
+    "wbbasket.ru",
+    "basket-01.wbbasket.ru", "basket-02.wbbasket.ru", "basket-03.wbbasket.ru",
+    "basket-04.wbbasket.ru", "basket-05.wbbasket.ru", "basket-06.wbbasket.ru",
+    "basket-07.wbbasket.ru", "basket-08.wbbasket.ru", "basket-09.wbbasket.ru",
+    "basket-10.wbbasket.ru", "basket-11.wbbasket.ru", "basket-12.wbbasket.ru",
+    "basket-13.wbbasket.ru", "basket-14.wbbasket.ru", "basket-15.wbbasket.ru",
+    "basket-16.wbbasket.ru", "basket-17.wbbasket.ru", "basket-18.wbbasket.ru",
+    "cdn1.ozone.ru", "cdn2.ozone.ru", "ir.ozone.ru",
+    "avatars.mds.yandex.net",
+}
+
+
+@router.get("/img", response_class=StreamingResponse)
+async def proxy_image(url: str = Query(..., description="Image URL to proxy")) -> StreamingResponse:
+    """Proxy marketplace images to avoid hotlink-protection blocks in the browser."""
+    parsed = urlparse(url)
+    host = parsed.hostname or ""
+
+    # Allow subdomains of known hosts
+    allowed = any(
+        host == allowed_host or host.endswith("." + allowed_host.lstrip("*."))
+        for allowed_host in _ALLOWED_IMAGE_HOSTS
+    )
+    if not allowed:
+        raise HTTPException(status_code=403, detail="Image host not allowed")
+
+    # Determine referer based on host
+    if "wbbasket" in host or "wildberries" in host:
+        referer = "https://www.wildberries.ru/"
+    elif "ozone" in host or "ozon" in host:
+        referer = "https://www.ozon.ru/"
+    else:
+        referer = "https://market.yandex.ru/"
+
+    headers = {
+        "Referer": referer,
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Safari/537.36"
+        ),
+        "Accept": "image/webp,image/avif,image/*,*/*;q=0.8",
+    }
+
+    try:
+        client = httpx.AsyncClient(timeout=15.0, follow_redirects=True)
+        response = await client.get(url, headers=headers)
+        response.raise_for_status()
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"Failed to fetch image: {exc}")
+
+    content_type = response.headers.get("content-type", "image/webp")
+
+    async def stream():
+        async for chunk in response.aiter_bytes(chunk_size=8192):
+            yield chunk
+        await client.aclose()
+
+    return StreamingResponse(
+        stream(),
+        media_type=content_type,
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
 
 _security = HTTPBearer(auto_error=False)
 
@@ -38,12 +105,17 @@ _WB_BASKET_RANGES: list[tuple[int, str]] = [
     (2837, "17"),
 ]
 
-
+# WB keeps adding basket servers — exact upper bounds beyond vol=2837 are
+# not publicly documented and shift over time.  We start at basket-18 and
+# let the browser's wbLoadImg() probe forward automatically.
 def _wb_basket_number(vol: int) -> str:
     for upper, basket in _WB_BASKET_RANGES:
         if vol <= upper:
             return basket
-    return "18"
+    # Rough heuristic for vol > 2837: each ~300 vol units ≈ one new basket
+    extra = max(0, (vol - 2837) // 300)
+    n = 18 + extra
+    return str(min(n, 30)).zfill(2)
 
 
 def _wb_image_url(nm_id: int, idx: int = 1) -> str:
