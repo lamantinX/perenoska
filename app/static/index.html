@@ -1,296 +1,1204 @@
-<!doctype html>
-<html lang="ru">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Perenositsa</title>
-    <link rel="stylesheet" href="/static/app.css?v=11" />
-  </head>
-  <body>
-    <div class="page-glow page-glow-left"></div>
-    <div class="page-glow page-glow-right"></div>
+<!DOCTYPE html>
+<html lang="ru" class="light">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Perenoska — Перенос товаров между маркетплейсами</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "primary": "#4648d4",
+          "primary-container": "#6063ee",
+          "primary-fixed": "#e1e0ff",
+          "primary-fixed-dim": "#c0c1ff",
+          "on-primary": "#ffffff",
+          "on-primary-fixed": "#07006c",
+          "on-primary-fixed-variant": "#2f2ebe",
+          "secondary": "#6b38d4",
+          "secondary-container": "#8455ef",
+          "secondary-fixed": "#e9ddff",
+          "on-secondary": "#ffffff",
+          "on-secondary-fixed": "#23005c",
+          "background": "#f8f9fa",
+          "surface": "#f8f9fa",
+          "surface-container": "#edeeef",
+          "surface-container-low": "#f3f4f5",
+          "surface-container-high": "#e7e8e9",
+          "surface-container-highest": "#e1e3e4",
+          "surface-container-lowest": "#ffffff",
+          "on-surface": "#191c1d",
+          "on-surface-variant": "#464554",
+          "outline": "#767586",
+          "outline-variant": "#c7c4d7",
+          "inverse-primary": "#c0c1ff",
+        },
+        fontFamily: { "headline": ["Inter"], "body": ["Inter"], "label": ["Inter"] },
+        borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+      },
+    },
+  }
+</script>
+<style>
+  body { font-family: 'Inter', sans-serif; background-color: #f8f9fa; }
+  .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; vertical-align: middle; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+  .screen:not(.active) .fixed, .screen:not(.active) [class*="fixed"] { pointer-events: none !important; visibility: hidden !important; }
+  .progress-ring-circle { transition: stroke-dashoffset 0.5s ease; transform: rotate(-90deg); transform-origin: 50% 50%; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .animate-spin { animation: spin 1s linear infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+  .animate-pulse { animation: pulse 2s cubic-bezier(.4,0,.6,1) infinite; }
+  @keyframes bounce-in { 0%{transform:scale(.3);opacity:0} 50%{transform:scale(1.05)} 70%{transform:scale(.9)} 100%{transform:scale(1);opacity:1} }
+  .bounce-in { animation: bounce-in .6s cubic-bezier(.215,.61,.355,1) forwards; }
+  .product-card.selected { outline: 2px solid #4648d4; background-color: #f0f0ff; }
+</style>
+</head>
+<body class="text-on-surface min-h-screen">
 
-    <main class="app-shell">
-      <section class="hero">
-        <div class="hero-copy">
-          <p class="eyebrow">Perenositsa</p>
-          <h1>Перенос карточек между Wildberries и Ozon</h1>
-          <p class="hero-text">
-            Подключайте кабинеты, загружайте каталог, проверяйте маппинг атрибутов и запускайте перенос
-            карточек в одном минималистичном интерфейсе.
+<!-- TOPNAV -->
+<nav id="topnav" class="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-xl shadow-sm">
+  <div class="flex justify-between items-center h-16 px-4 md:px-8 max-w-7xl mx-auto gap-2">
+    <div class="text-xl md:text-2xl font-black tracking-tighter text-indigo-600 cursor-pointer flex-shrink-0" onclick="goToScreen(1)">Perenoska</div>
+    <div class="flex items-center gap-1 md:gap-6">
+      <a class="text-xs md:text-sm font-medium text-slate-500 hover:text-indigo-500 transition-colors cursor-pointer px-2 py-1 rounded-lg hover:bg-indigo-50" onclick="openInfoModal('about')">О сервисе</a>
+      <a class="text-xs md:text-sm font-medium text-slate-500 hover:text-indigo-500 transition-colors cursor-pointer px-2 py-1 rounded-lg hover:bg-indigo-50" onclick="openInfoModal('pricing')">Тарифы</a>
+      <a class="text-xs md:text-sm font-medium text-slate-500 hover:text-indigo-500 transition-colors cursor-pointer px-2 py-1 rounded-lg hover:bg-indigo-50" onclick="openInfoModal('support')">Поддержка</a>
+    </div>
+    <div id="nav-auth-area" class="flex items-center gap-2 md:gap-4 flex-shrink-0">
+      <button onclick="openAuthModal('login')" class="text-xs md:text-sm font-medium text-slate-500 hover:text-indigo-500 transition-colors">Войти</button>
+      <button onclick="openAuthModal('register')" class="bg-primary hover:bg-primary-container text-white px-3 md:px-5 py-2 rounded-full text-xs md:text-sm font-medium transition-colors">Регистрация</button>
+    </div>
+  </div>
+</nav>
+
+<!-- PROGRESS BAR -->
+<div id="progress-bar" class="hidden fixed top-16 w-full z-40 bg-white border-b border-surface-container py-4 shadow-sm">
+  <div class="max-w-2xl mx-auto px-8">
+    <div class="flex items-center justify-between relative">
+      <div class="absolute top-5 left-0 w-full h-0.5 bg-surface-container z-0"></div>
+      <div id="progress-fill" class="absolute top-5 left-0 h-0.5 bg-primary z-0 transition-all duration-500" style="width:0%"></div>
+      <div class="step-item relative z-10 flex flex-col items-center gap-1 cursor-pointer" data-step="1" onclick="stepNav(1)">
+        <div class="step-circle w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold outline outline-4 outline-white bg-primary text-white transition-all">1</div>
+        <span class="step-label text-[10px] font-bold uppercase tracking-wider text-primary">Ссылка</span>
+      </div>
+      <div class="step-item relative z-10 flex flex-col items-center gap-1 cursor-pointer" data-step="2" onclick="stepNav(2)">
+        <div class="step-circle w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold outline outline-4 outline-white bg-surface-container text-outline transition-all">2</div>
+        <span class="step-label text-[10px] font-bold uppercase tracking-wider text-outline">Товары</span>
+      </div>
+      <div class="step-item relative z-10 flex flex-col items-center gap-1 cursor-pointer" data-step="3" onclick="stepNav(3)">
+        <div class="step-circle w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold outline outline-4 outline-white bg-surface-container text-outline transition-all">3</div>
+        <span class="step-label text-[10px] font-bold uppercase tracking-wider text-outline">Предпросмотр</span>
+      </div>
+      <div class="step-item relative z-10 flex flex-col items-center gap-1 cursor-pointer" data-step="4" onclick="stepNav(4)">
+        <div class="step-circle w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold outline outline-4 outline-white bg-surface-container text-outline transition-all">4</div>
+        <span class="step-label text-[10px] font-bold uppercase tracking-wider text-outline">Подключение</span>
+      </div>
+      <div class="step-item relative z-10 flex flex-col items-center gap-1 cursor-pointer" data-step="5" onclick="stepNav(5)">
+        <div class="step-circle w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold outline outline-4 outline-white bg-surface-container text-outline transition-all">5</div>
+        <span class="step-label text-[10px] font-bold uppercase tracking-wider text-outline">Перенос</span>
+      </div>
+      <div class="step-item relative z-10 flex flex-col items-center gap-1 cursor-pointer" data-step="6" onclick="stepNav(6)">
+        <div class="step-circle w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold outline outline-4 outline-white bg-surface-container text-outline transition-all">6</div>
+        <span class="step-label text-[10px] font-bold uppercase tracking-wider text-outline">Готово</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SCREEN 1: HERO ===== -->
+<div id="screen-1" class="screen active pt-16">
+  <section class="relative min-h-[88vh] flex items-center overflow-hidden bg-surface">
+    <div class="absolute top-0 right-0 -translate-y-1/3 translate-x-1/4 w-[700px] h-[700px] bg-gradient-to-br from-primary/5 to-secondary/10 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="max-w-7xl mx-auto px-8 py-24 relative z-10 w-full">
+      <div class="max-w-3xl">
+        <div class="inline-flex items-center px-4 py-1.5 rounded-full bg-secondary-fixed text-on-secondary-fixed mb-8">
+          <span class="material-symbols-outlined text-[18px] mr-2">sync_alt</span>
+          <span class="text-[11px] font-semibold uppercase tracking-widest">Перенос товаров между маркетплейсами</span>
+        </div>
+        <h1 class="text-6xl font-bold text-on-surface mb-6 leading-tight">
+          Перенесите товары за
+          <span class="bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary"> 3 минуты</span>
+        </h1>
+        <p class="text-lg text-on-surface-variant leading-relaxed mb-10 max-w-2xl">
+          Вставьте ссылку на магазин или товар — мы сделаем всё остальное. Автоматический парсинг и адаптация под требования любой площадки.
+        </p>
+        <div class="bg-surface-container-lowest p-2 rounded-2xl shadow-sm border border-outline-variant/10 mb-5">
+          <div class="flex flex-col md:flex-row gap-3">
+            <div class="flex-grow flex items-center px-4 bg-surface-container-low rounded-xl focus-within:ring-2 focus-within:ring-primary/40 transition-all">
+              <span class="material-symbols-outlined text-outline mr-3 flex-shrink-0">link</span>
+              <input id="url-input" class="w-full h-14 bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-outline font-medium text-base" placeholder="Вставьте ссылку с Wildberries, Ozon или Яндекс.Маркет..." type="text"/>
+            </div>
+            <button id="fetch-btn" onclick="fetchProducts()" class="bg-gradient-to-br from-primary to-secondary text-white px-10 h-14 rounded-full font-semibold shadow-lg shadow-primary/20 hover:shadow-primary/30 active:scale-95 transition-all flex items-center justify-center gap-2 whitespace-nowrap">
+              <span id="fetch-btn-text">Подтянуть товары</span>
+              <span id="fetch-spinner" class="material-symbols-outlined text-[20px] animate-spin hidden">progress_activity</span>
+            </button>
+          </div>
+        </div>
+        <div id="fetch-error" class="hidden mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm font-medium"></div>
+        <div class="flex flex-wrap gap-3">
+          <div class="flex items-center h-8 px-4 rounded-full bg-[#C41C7E]/10 text-[#C41C7E]">
+            <span class="material-symbols-outlined text-[16px] mr-2">shopping_bag</span>
+            <span class="text-[11px] font-bold uppercase tracking-tight">Wildberries</span>
+          </div>
+          <div class="flex items-center h-8 px-4 rounded-full bg-[#005BFF]/10 text-[#005BFF]">
+            <span class="material-symbols-outlined text-[16px] mr-2">rocket_launch</span>
+            <span class="text-[11px] font-bold uppercase tracking-tight">Ozon</span>
+          </div>
+          <div class="flex items-center h-8 px-4 rounded-full bg-[#FC3F1D]/10 text-[#FC3F1D]">
+            <span class="material-symbols-outlined text-[16px] mr-2">category</span>
+            <span class="text-[11px] font-bold uppercase tracking-tight">Яндекс.Маркет</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="bg-surface-container-low py-16">
+    <div class="max-w-7xl mx-auto px-8 grid grid-cols-1 md:grid-cols-3 gap-10">
+      <div><span class="text-4xl font-bold text-on-surface block mb-2">5 000+</span><span class="text-on-surface-variant font-medium">Продавцов выбрали сервис</span></div>
+      <div><span class="text-4xl font-bold text-on-surface block mb-2">98%</span><span class="text-on-surface-variant font-medium">Успешных переносов</span></div>
+      <div><span class="text-4xl font-bold text-primary block mb-2">Бесплатно</span><span class="text-on-surface-variant font-medium">Первые 3 товара</span></div>
+    </div>
+  </section>
+  <footer class="border-t border-slate-200 bg-slate-50">
+    <div class="flex flex-col md:flex-row justify-between items-center py-10 px-8 max-w-7xl mx-auto gap-4">
+      <div class="text-lg font-bold text-slate-900">Perenoska</div>
+      <div class="flex gap-8">
+        <a class="text-xs font-semibold uppercase tracking-wider text-slate-500 hover:text-indigo-500 cursor-pointer" onclick="openInfoModal('privacy')">Конфиденциальность</a>
+        <a class="text-xs font-semibold uppercase tracking-wider text-slate-500 hover:text-indigo-500 cursor-pointer" onclick="openInfoModal('terms')">Соглашение</a>
+        <a class="text-xs font-semibold uppercase tracking-wider text-slate-500 hover:text-indigo-500 cursor-pointer" onclick="openInfoModal('support')">Поддержка</a>
+      </div>
+      <span class="text-xs text-slate-400">© 2024 Perenoska</span>
+    </div>
+  </footer>
+</div>
+
+<!-- ===== SCREEN 2: PRODUCTS ===== -->
+<div id="screen-2" class="screen pt-36 pb-36">
+  <main class="max-w-[1200px] mx-auto px-8">
+    <div class="mb-8">
+      <h1 class="text-4xl font-extrabold tracking-tight text-on-surface mb-3">Товары из вашего магазина</h1>
+      <div class="flex items-center gap-3 flex-wrap">
+        <span id="s2-marketplace-badge" class="px-3 py-1 bg-secondary-container text-white text-[10px] font-bold uppercase tracking-wider rounded-full">Wildberries</span>
+        <p class="text-on-surface-variant font-medium">Найдено: <span id="s2-total" class="text-primary font-bold">0 товаров</span></p>
+      </div>
+    </div>
+    <div class="mb-8 p-2 bg-surface-container-lowest rounded-xl flex flex-wrap md:flex-nowrap items-center gap-4 shadow-sm">
+      <div class="relative flex-grow">
+        <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">search</span>
+        <input id="s2-search" oninput="filterProducts()" class="w-full pl-12 pr-4 py-3 bg-surface-container-low border-none rounded-lg focus:ring-2 focus:ring-primary/20 placeholder:text-outline/60 text-sm" placeholder="Поиск по названию" type="text"/>
+      </div>
+      <div class="flex items-center gap-3 shrink-0">
+        <div class="px-5 py-3 bg-primary-fixed text-on-primary-fixed rounded-lg text-sm font-bold flex items-center gap-2">
+          Выбрано <span id="s2-selected-count" class="bg-primary text-white w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold">0</span>
+        </div>
+      </div>
+    </div>
+    <div id="products-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+    <div id="s2-empty" class="hidden text-center py-20 text-on-surface-variant">
+      <span class="material-symbols-outlined text-6xl mb-4 block">inventory_2</span>
+      <p class="text-lg font-medium">Товары не найдены</p>
+    </div>
+  </main>
+  <div class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md z-40 border-t border-outline-variant/10 shadow-xl">
+    <div class="max-w-[1200px] mx-auto px-8 py-5 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+          <span class="material-symbols-outlined text-primary" style="font-variation-settings:'FILL' 1">shopping_bag</span>
+        </div>
+        <div>
+          <p class="text-on-surface font-bold text-lg leading-tight"><span id="s2-selected-count-bar">0</span> товаров выбрано</p>
+          <p class="text-xs font-semibold text-outline uppercase tracking-wider">Будут перенесены на другую площадку</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-4">
+        <button onclick="goToScreen(1)" class="px-8 py-4 bg-surface-container-high text-on-surface font-bold rounded-full hover:bg-surface-container-highest active:scale-95 transition-all">Назад</button>
+        <button id="s2-continue-btn" onclick="goToPreview()" disabled class="px-10 py-4 bg-gradient-to-br from-primary to-secondary text-white font-bold rounded-full shadow-lg disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all">Продолжить →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SCREEN 3: PREVIEW ===== -->
+<div id="screen-3" class="screen pt-36 pb-36">
+  <main class="max-w-[1440px] mx-auto px-8 py-8">
+    <div class="mb-10 text-center">
+      <h1 class="text-4xl font-black tracking-tight mb-2">Предпросмотр карточки</h1>
+      <p class="text-on-surface-variant max-w-lg mx-auto">Проверьте, как товар будет выглядеть на целевой площадке</p>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div class="flex flex-col gap-4">
+        <div class="flex items-center gap-3 px-2">
+          <span class="material-symbols-outlined text-primary" style="font-variation-settings:'FILL' 1">dataset</span>
+          <h2 class="text-lg font-bold">Исходная карточка (Wildberries)</h2>
+        </div>
+        <div class="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden border border-outline-variant/10">
+          <div class="p-6">
+            <div class="flex gap-5 mb-6">
+              <div class="w-36 h-48 rounded-lg overflow-hidden bg-surface-container-low flex-shrink-0 flex items-center justify-center">
+                <img id="s3-src-img" class="w-full h-full object-cover hidden" src="" alt=""/>
+                <span id="s3-src-img-placeholder" class="material-symbols-outlined text-5xl text-outline">image</span>
+              </div>
+              <div class="flex flex-col gap-2 min-w-0">
+                <span class="text-[10px] text-outline uppercase font-bold tracking-widest">Источник</span>
+                <h3 id="s3-src-title" class="text-xl font-bold leading-tight"></h3>
+                <div id="s3-src-price" class="text-2xl font-black text-indigo-600"></div>
+                <p id="s3-src-desc" class="text-sm text-on-surface-variant leading-relaxed mt-2 line-clamp-3"></p>
+              </div>
+            </div>
+            <h4 class="text-xs font-extrabold uppercase tracking-widest text-slate-400 border-b border-surface-container pb-2 mb-4">ХАРАКТЕРИСТИКИ</h4>
+            <div id="s3-src-attrs" class="grid grid-cols-2 gap-y-3 text-sm"></div>
+          </div>
+        </div>
+      </div>
+      <div class="flex flex-col gap-4">
+        <div class="flex justify-between items-center px-2">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-secondary" style="font-variation-settings:'FILL' 1">auto_awesome</span>
+            <h2 class="text-lg font-bold">Карточка для Ozon</h2>
+          </div>
+          <span class="bg-emerald-50 text-emerald-600 text-[10px] font-black px-3 py-1 rounded-full border border-emerald-100 uppercase">ГОТОВО</span>
+        </div>
+        <div class="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden border border-outline-variant/10 relative">
+          <div class="bg-emerald-500 text-white text-xs font-bold py-2 px-6 flex items-center justify-center gap-2">
+            <span class="material-symbols-outlined text-sm">verified</span>
+            Все поля заполнены автоматически
+          </div>
+          <div class="p-6">
+            <div class="flex gap-5 mb-6">
+              <div class="w-36 h-48 rounded-lg overflow-hidden bg-surface-container-low flex-shrink-0 relative flex items-center justify-center">
+                <img id="s3-dst-img" class="w-full h-full object-cover hidden" src="" alt=""/>
+                <span id="s3-dst-img-placeholder" class="material-symbols-outlined text-5xl text-outline">image</span>
+                <div class="absolute inset-0 bg-indigo-500/10 flex items-end justify-end p-2">
+                  <div class="bg-white/90 p-1 rounded-full shadow-sm">
+                    <span class="material-symbols-outlined text-indigo-600 text-sm">auto_fix_high</span>
+                  </div>
+                </div>
+              </div>
+              <div class="flex flex-col gap-2 min-w-0">
+                <div class="flex items-center gap-2">
+                  <span class="text-[10px] text-emerald-500 font-bold uppercase tracking-widest">SEO оптимизировано</span>
+                  <span class="material-symbols-outlined text-emerald-500 text-sm" style="font-variation-settings:'FILL' 1">check_circle</span>
+                </div>
+                <h3 id="s3-dst-title" class="text-xl font-bold leading-tight"></h3>
+                <div id="s3-dst-price" class="text-2xl font-black text-indigo-600"></div>
+                <div class="mt-2 bg-surface-container-low p-3 rounded-lg border-l-4 border-emerald-400">
+                  <p class="text-[13px] text-on-surface-variant italic leading-relaxed">Описание оптимизировано под поиск Ozon</p>
+                </div>
+              </div>
+            </div>
+            <h4 class="text-xs font-extrabold uppercase tracking-widest text-slate-400 border-b border-surface-container pb-2 mb-4">СПЕЦИФИКАЦИИ OZON</h4>
+            <div id="s3-dst-attrs" class="space-y-2"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+  <div class="fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-xl border-t border-outline-variant/10 z-50">
+    <div class="max-w-[1440px] mx-auto h-24 px-12 flex items-center justify-between">
+      <button onclick="goToScreen(2)" class="flex items-center gap-2 text-on-surface-variant font-semibold hover:text-indigo-600 transition-colors px-6 py-3 rounded-full hover:bg-surface-container-low active:scale-95">
+        <span class="material-symbols-outlined">arrow_back</span>Назад
+      </button>
+      <button onclick="goToScreen(4)" class="bg-gradient-to-r from-primary to-primary-container text-white px-10 py-4 rounded-3xl font-bold shadow-lg shadow-indigo-200 flex items-center gap-3 hover:shadow-xl hover:-translate-y-0.5 active:scale-95 transition-all">
+        Перенести товар <span class="material-symbols-outlined">rocket_launch</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SCREEN 4: CONNECT ===== -->
+<div id="screen-4" class="screen pt-36">
+  <main class="max-w-4xl mx-auto px-6 py-8">
+    <div class="text-center mb-12">
+      <h1 class="text-5xl font-black tracking-tight text-on-surface mb-4">Подключите Ozon</h1>
+      <p class="text-lg text-on-surface-variant max-w-xl mx-auto">Введите API-ключи из личного кабинета продавца</p>
+    </div>
+    <div class="space-y-6">
+      <!-- Основной способ: API Key -->
+      <div class="bg-surface-container-lowest p-10 rounded-2xl border-2 border-primary/20 relative shadow-sm overflow-hidden">
+        <div class="absolute top-0 right-0">
+          <div class="bg-primary-container text-white px-6 py-2 rounded-bl-2xl font-bold text-xs uppercase tracking-widest">Рекомендуем</div>
+        </div>
+        <div class="max-w-2xl mx-auto">
+          <div class="flex items-center gap-4 mb-6">
+            <div class="w-14 h-14 bg-primary/5 rounded-2xl flex items-center justify-center flex-shrink-0">
+              <span class="material-symbols-outlined text-3xl text-primary">key</span>
+            </div>
+            <div>
+              <h2 class="text-2xl font-bold text-on-surface">API-ключи Ozon Seller</h2>
+              <p class="text-sm text-on-surface-variant mt-0.5">Настройки → API → Ключи администратора</p>
+            </div>
+            <a href="https://seller.ozon.ru/app/settings/api-keys" target="_blank"
+               class="ml-auto flex-shrink-0 inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition-colors">
+              Открыть в Ozon
+              <span class="material-symbols-outlined text-base">open_in_new</span>
+            </a>
+          </div>
+          <!-- Инструкция -->
+          <div class="bg-primary/4 rounded-xl px-5 py-4 mb-6 text-sm text-on-surface-variant space-y-1">
+            <p class="font-semibold text-on-surface mb-2">Как получить ключи:</p>
+            <p>1. Перейдите в Ozon Seller → <strong>Настройки → API → Ключи администратора</strong></p>
+            <p>2. Нажмите «Сгенерировать ключ», выберите роль <strong>Admin read write</strong></p>
+            <p>3. Скопируйте <strong>Client ID</strong> и <strong>API Key</strong> и вставьте ниже</p>
+          </div>
+          <div class="grid md:grid-cols-2 gap-4 mb-5">
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-1.5">Client ID</label>
+              <input id="api-client-id"
+                     class="w-full bg-surface-container-low border border-outline-variant/30 focus:border-primary focus:ring-1 focus:ring-primary/30 rounded-xl px-4 py-3 text-sm placeholder:text-outline/50 outline-none transition-all"
+                     placeholder="Например: 123456"
+                     type="text" autocomplete="off"/>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-1.5">API Key</label>
+              <input id="api-key"
+                     class="w-full bg-surface-container-low border border-outline-variant/30 focus:border-primary focus:ring-1 focus:ring-primary/30 rounded-xl px-4 py-3 text-sm placeholder:text-outline/50 outline-none transition-all"
+                     placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                     type="password" autocomplete="off"/>
+            </div>
+          </div>
+          <button onclick="connectViaAPI()"
+                  class="w-full py-4 bg-gradient-to-br from-primary to-primary-container text-white font-bold text-base rounded-2xl shadow-md shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center gap-2">
+            <span class="material-symbols-outlined">link</span>
+            Подключить Ozon
+          </button>
+        </div>
+      </div>
+      <!-- Разделитель -->
+      <div class="flex items-center gap-6 py-2">
+        <div class="flex-1 h-px bg-outline-variant/30"></div>
+        <span class="text-xs font-bold uppercase tracking-widest text-outline">или загрузить файл</span>
+        <div class="flex-1 h-px bg-outline-variant/30"></div>
+      </div>
+      <!-- Загрузка файла -->
+      <div class="bg-surface-container-lowest p-8 rounded-2xl shadow-sm flex flex-col items-center justify-center text-center border-2 border-dashed border-outline-variant/40 hover:border-primary/40 transition-all group">
+        <div class="w-16 h-16 rounded-full bg-surface-container flex items-center justify-center mb-4 group-hover:bg-primary-fixed transition-colors">
+          <span class="material-symbols-outlined text-3xl text-on-surface-variant group-hover:text-primary transition-colors">cloud_upload</span>
+        </div>
+        <h3 class="text-lg font-bold text-on-surface mb-2">Загрузить файл</h3>
+        <p class="text-sm text-on-surface-variant mb-6 px-4">CSV или XLSX с товарами из кабинета Ozon</p>
+        <button class="px-8 py-3 bg-surface-container-high text-primary font-bold rounded-2xl hover:bg-primary-fixed transition-colors">Выбрать файл</button>
+      </div>
+      <div class="flex items-center justify-center gap-3 py-4 text-on-surface-variant">
+        <span class="material-symbols-outlined text-indigo-400" style="font-variation-settings:'FILL' 1">shield_with_heart</span>
+        <span class="text-sm font-medium">Ваши данные защищены сквозным шифрованием</span>
+      </div>
+    </div>
+    <div class="mt-10 flex items-center border-t border-outline-variant/20 pt-8">
+      <button onclick="goToScreen(3)" class="px-8 py-3 border-2 border-outline-variant text-on-surface font-bold rounded-3xl hover:bg-surface-container transition-all flex items-center gap-2">
+        <span class="material-symbols-outlined text-sm">arrow_back</span>Назад
+      </button>
+    </div>
+  </main>
+  <footer class="border-t border-slate-200 bg-slate-50 mt-16">
+    <div class="flex justify-between items-center px-8 py-10 max-w-7xl mx-auto">
+      <div class="text-lg font-black">Perenoska</div>
+      <div class="flex gap-8">
+        <a class="text-xs font-medium uppercase tracking-widest text-slate-500 hover:text-indigo-600 cursor-pointer" onclick="openInfoModal('support')">Поддержка</a>
+      </div>
+      <p class="text-xs text-slate-400">© 2024 Perenoska</p>
+    </div>
+  </footer>
+</div>
+
+<!-- ===== SCREEN 5: PROGRESS ===== -->
+<div id="screen-5" class="screen pt-36 pb-12 min-h-screen">
+  <main class="px-6 py-4">
+    <div class="max-w-4xl mx-auto">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <div class="lg:col-span-7 bg-surface-container-lowest rounded-xl p-10 shadow-sm flex flex-col items-center text-center relative overflow-hidden">
+          <div class="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full -mr-16 -mt-16 blur-3xl opacity-50"></div>
+          <div class="absolute bottom-0 left-0 w-32 h-32 bg-violet-50 rounded-full -ml-16 -mb-16 blur-3xl opacity-50"></div>
+          <h1 class="text-3xl font-black tracking-tight text-on-surface mb-2">Переносим товары на Ozon</h1>
+          <p class="text-on-surface-variant font-medium mb-10">Займёт 10–30 секунд</p>
+          <div class="relative flex items-center justify-center mb-8">
+            <svg class="w-56 h-56" viewBox="0 0 224 224">
+              <circle class="stroke-current text-surface-container" cx="112" cy="112" fill="transparent" r="90" stroke-width="8"></circle>
+              <circle id="progress-circle" class="stroke-current text-primary progress-ring-circle" cx="112" cy="112" fill="transparent" r="90" stroke-dasharray="565.48" stroke-dashoffset="565.48" stroke-linecap="round" stroke-width="8"></circle>
+            </svg>
+            <div class="absolute inset-0 flex flex-col items-center justify-center">
+              <span id="progress-pct" class="text-5xl font-black text-on-surface tracking-tighter">0%</span>
+              <span class="text-sm font-bold text-primary tracking-widest uppercase mt-1">В процессе</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 py-3 px-6 bg-primary-fixed/30 rounded-full border border-primary/10">
+            <span class="material-symbols-outlined text-primary text-xl animate-pulse">check_circle</span>
+            <span id="progress-count" class="text-on-primary-fixed-variant font-bold">0 товаров перенесено</span>
+          </div>
+          <p class="mt-6 text-sm text-outline flex items-center gap-2">
+            <span class="material-symbols-outlined text-lg">info</span>
+            Не закрывайте страницу
           </p>
         </div>
-        <div class="hero-status" id="sessionStatus">Не авторизован</div>
-      </section>
-
-      <section class="panel auth-panel" id="authPanel">
-        <div class="panel-head">
-          <div>
-            <p class="panel-kicker">Доступ</p>
-            <h2>Вход в сервис</h2>
-          </div>
-          <button class="ghost-button hidden" id="logoutButton" type="button">Выйти</button>
-        </div>
-
-        <div class="auth-grid">
-          <form class="form-card" id="registerForm">
-            <h3>Регистрация</h3>
-            <label>
-              <span>Email</span>
-              <input name="email" type="email" placeholder="seller@example.com" required />
-            </label>
-            <label>
-              <span>Пароль</span>
-              <input name="password" type="password" placeholder="Минимум 8 символов" required />
-            </label>
-            <button class="primary-button" type="submit">Создать аккаунт</button>
-          </form>
-
-          <form class="form-card" id="loginForm">
-            <h3>Вход</h3>
-            <label>
-              <span>Email</span>
-              <input name="email" type="email" placeholder="seller@example.com" required />
-            </label>
-            <label>
-              <span>Пароль</span>
-              <input name="password" type="password" placeholder="Ваш пароль" required />
-            </label>
-            <button class="secondary-button" type="submit">Войти</button>
-          </form>
-        </div>
-      </section>
-
-      <section class="workspace hidden" id="workspace">
-        <section class="panel">
-          <div class="panel-head">
-            <div>
-              <p class="panel-kicker">Подключения</p>
-              <h2>Маркетплейсы</h2>
-            </div>
-            <button class="ghost-button" id="refreshConnectionsButton" type="button">Обновить</button>
-          </div>
-
-          <div class="cards-grid">
-            <article class="credential-card">
-              <div class="marketplace-line">
-                <h3>Wildberries</h3>
-                <span class="badge badge-neutral" id="wbConnectionBadge">Не подключен</span>
+        <div class="lg:col-span-5 flex flex-col gap-4">
+          <div class="bg-surface-container-low rounded-xl p-6">
+            <h3 class="text-xs font-black uppercase tracking-widest text-outline mb-6">Этапы выполнения</h3>
+            <div class="space-y-5" id="transfer-steps">
+              <div class="transfer-step flex items-center gap-4" data-idx="0">
+                <div class="step-icon w-8 h-8 rounded-full bg-surface-container flex items-center justify-center flex-shrink-0 text-outline"><span class="material-symbols-outlined text-lg">check_circle</span></div>
+                <div><span class="text-on-surface font-semibold block">Проверка данных</span><span class="step-status text-xs text-outline font-medium">В очереди</span></div>
               </div>
-              <form id="wbConnectionForm">
-                <label>
-                  <span>WB token</span>
-                  <input name="token" type="password" placeholder="Seller token" required />
-                </label>
-                <button class="primary-button" type="submit">Сохранить WB</button>
-              </form>
-              <div class="masked-value" id="wbMasked"></div>
-            </article>
-
-            <article class="credential-card">
-              <div class="marketplace-line">
-                <h3>Ozon</h3>
-                <span class="badge badge-neutral" id="ozonConnectionBadge">Не подключен</span>
+              <div class="transfer-step flex items-center gap-4" data-idx="1">
+                <div class="step-icon w-8 h-8 rounded-full bg-surface-container flex items-center justify-center flex-shrink-0 text-outline"><span class="material-symbols-outlined text-lg">auto_awesome</span></div>
+                <div><span class="text-on-surface font-semibold block">Адаптация карточек</span><span class="step-status text-xs text-outline font-medium">В очереди</span></div>
               </div>
-              <form id="ozonConnectionForm">
-                <label>
-                  <span>Seller ID / Client ID</span>
-                  <input name="client_id" type="text" placeholder="Client ID" required />
-                </label>
-                <label>
-                  <span>API key</span>
-                  <input name="api_key" type="password" placeholder="API key" required />
-                </label>
-                <button class="primary-button" type="submit">Сохранить Ozon</button>
-              </form>
-              <div class="masked-value" id="ozonMasked"></div>
-            </article>
-
-            <article class="credential-card">
-              <div class="marketplace-line">
-                <h3>Yandex Market</h3>
-                <span class="badge badge-neutral" id="yandexMarketConnectionBadge">Не подключен</span>
+              <div class="transfer-step flex items-center gap-4" data-idx="2">
+                <div class="step-icon w-8 h-8 rounded-full bg-surface-container flex items-center justify-center flex-shrink-0 text-outline"><span class="material-symbols-outlined text-lg">image</span></div>
+                <div><span class="text-on-surface font-semibold block">Загрузка изображений</span><span class="step-status text-xs text-outline font-medium">В очереди</span></div>
               </div>
-              <form id="yandexMarketConnectionForm">
-                <label>
-                  <span>OAuth token</span>
-                  <input name="token" type="password" placeholder="Yandex OAuth token" required />
-                </label>
-                <label>
-                  <span>Business ID</span>
-                  <input name="business_id" type="number" inputmode="numeric" placeholder="Business ID" required />
-                </label>
-                <label>
-                  <span>Campaign ID</span>
-                  <input name="campaign_id" type="number" inputmode="numeric" placeholder="Campaign ID" required />
-                </label>
-                <button class="primary-button" type="submit">Сохранить Yandex Market</button>
-              </form>
-              <div class="masked-value" id="yandexMarketMasked"></div>
-            </article>
+              <div class="transfer-step flex items-center gap-4" data-idx="3">
+                <div class="step-icon w-8 h-8 rounded-full bg-surface-container flex items-center justify-center flex-shrink-0 text-outline"><span class="material-symbols-outlined text-lg">cloud_upload</span></div>
+                <div><span class="text-on-surface font-semibold block">Публикация</span><span class="step-status text-xs text-outline font-medium">В очереди</span></div>
+              </div>
+              <div class="transfer-step flex items-center gap-4" data-idx="4">
+                <div class="step-icon w-8 h-8 rounded-full bg-surface-container flex items-center justify-center flex-shrink-0 text-outline"><span class="material-symbols-outlined text-lg">verified_user</span></div>
+                <div><span class="text-on-surface font-semibold block">Финальная проверка</span><span class="step-status text-xs text-outline font-medium">В очереди</span></div>
+              </div>
+            </div>
           </div>
-        </section>
+          <div class="bg-indigo-600 rounded-xl p-6 text-white relative overflow-hidden">
+            <div class="absolute top-0 right-0 -mr-4 -mt-4 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
+            <h4 class="font-bold mb-2">Знаете ли вы?</h4>
+            <p class="text-indigo-100 text-sm leading-relaxed">Perenoska автоматически оптимизирует изображения под требования Ozon, чтобы карточки прошли модерацию с первого раза.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
 
-        <section class="panel">
-          <div class="panel-head">
+<!-- ===== SCREEN 6: SUCCESS ===== -->
+<div id="screen-6" class="screen pt-36">
+  <main class="max-w-4xl mx-auto px-6 py-12">
+    <div class="text-center mb-12">
+      <div class="inline-flex items-center justify-center w-24 h-24 rounded-full border-4 border-primary p-1 mb-8 bg-surface-container-lowest shadow-xl shadow-primary/10 bounce-in">
+        <div class="w-full h-full rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+          <span class="material-symbols-outlined text-white text-5xl" style="font-variation-settings:'FILL' 1">check_circle</span>
+        </div>
+      </div>
+      <h1 class="text-5xl font-extrabold text-on-surface tracking-tight mb-4">Товары успешно перенесены!</h1>
+      <p id="s6-subtitle" class="text-lg text-on-surface-variant">Товары теперь доступны на Ozon</p>
+    </div>
+    <div class="bg-surface-container-lowest rounded-xl p-8 mb-10 shadow-sm border border-outline-variant/10">
+      <div id="s6-products-list" class="space-y-4"></div>
+      <div class="mt-8 pt-8 border-t border-surface-container-low flex justify-center">
+        <button class="px-8 py-3 rounded-full bg-white text-primary border border-primary font-semibold hover:bg-primary-fixed transition-all flex items-center gap-2">
+          Открыть на Ozon <span class="material-symbols-outlined text-sm">open_in_new</span>
+        </button>
+      </div>
+    </div>
+    <div class="flex items-center gap-4 mb-10">
+      <div class="flex-1 h-px bg-surface-container-high"></div>
+      <span class="text-[10px] font-bold tracking-widest text-on-surface-variant uppercase">Что дальше?</span>
+      <div class="flex-1 h-px bg-surface-container-high"></div>
+    </div>
+    <div class="relative overflow-hidden bg-gradient-to-br from-[#4648d4] to-[#6b38d4] rounded-2xl p-8 md:p-12 text-white shadow-2xl shadow-primary/20 mb-12">
+      <div class="absolute -right-20 -top-20 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
+      <div class="relative z-10 grid md:grid-cols-2 gap-10 items-center">
+        <div>
+          <h2 class="text-3xl font-bold tracking-tight mb-6">Переносите товары быстрее с PRO</h2>
+          <ul class="space-y-3 mb-8">
+            <li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary-fixed text-xl" style="font-variation-settings:'FILL' 1">check_circle</span><span class="text-primary-fixed font-medium">Безлимитный перенос товаров</span></li>
+            <li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary-fixed text-xl" style="font-variation-settings:'FILL' 1">check_circle</span><span class="text-primary-fixed font-medium">Пакетный трансфер в один клик</span></li>
+            <li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary-fixed text-xl" style="font-variation-settings:'FILL' 1">check_circle</span><span class="text-primary-fixed font-medium">Автосинхронизация остатков</span></li>
+            <li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary-fixed text-xl" style="font-variation-settings:'FILL' 1">check_circle</span><span class="text-primary-fixed font-medium">Приоритетная поддержка 24/7</span></li>
+          </ul>
+        </div>
+        <div class="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/10 text-center">
+          <p class="text-white/80 text-sm mb-2 uppercase tracking-widest font-bold">Тариф PRO</p>
+          <div class="text-4xl font-extrabold mb-6">от 990 ₽ <span class="text-lg font-normal opacity-70">/ мес</span></div>
+          <button class="w-full py-4 bg-white text-primary font-bold rounded-full hover:bg-surface-bright transition-colors mb-3">Попробовать PRO бесплатно 14 дней</button>
+          <p class="text-xs text-white/60 italic">Отмена в любое время</p>
+        </div>
+      </div>
+      <div class="mt-10 text-center">
+        <button onclick="goToScreen(1)" class="text-white/70 font-semibold hover:text-white transition-colors flex items-center gap-2 mx-auto">
+          <span class="material-symbols-outlined">add</span>Перенести ещё товары
+        </button>
+      </div>
+    </div>
+  </main>
+  <footer class="border-t border-[#f3f4f5] bg-[#f8f9fa]">
+    <div class="flex justify-between items-center px-8 py-10 max-w-7xl mx-auto text-xs uppercase tracking-widest text-[#6B7280]">
+      <div>© 2024 Perenoska</div>
+      <div class="flex gap-8">
+        <a class="hover:text-[#4648d4] transition-colors cursor-pointer" onclick="openInfoModal('terms')">Условия</a>
+        <a class="hover:text-[#4648d4] transition-colors cursor-pointer" onclick="openInfoModal('privacy')">Конфиденциальность</a>
+        <a class="hover:text-[#4648d4] transition-colors cursor-pointer" onclick="openInfoModal('support')">Поддержка</a>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<!-- ===== ЛИЧНЫЙ КАБИНЕТ MODAL ===== -->
+<div id="kabinet-modal" class="hidden fixed inset-0 z-[90] flex items-center justify-center p-4">
+  <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeKabinet()"></div>
+  <div class="relative bg-surface rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto z-10">
+    <!-- Header -->
+    <div class="sticky top-0 bg-white/90 backdrop-blur-md px-8 py-5 border-b border-outline-variant/10 flex items-center justify-between rounded-t-3xl">
+      <div class="text-lg font-bold text-on-surface">Личный кабинет</div>
+      <button onclick="closeKabinet()" class="text-slate-400 hover:text-slate-600 transition-colors">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+
+    <div class="p-8 flex flex-col gap-6">
+      <!-- Профиль -->
+      <div class="flex items-center gap-5">
+        <div id="kab-avatar" class="w-16 h-16 rounded-full bg-gradient-to-br from-[#c926ff] to-[#0078ff] flex items-center justify-center text-white text-2xl font-bold flex-shrink-0">U</div>
+        <div class="flex-1 min-w-0">
+          <div id="kab-name" class="font-bold text-on-surface text-lg truncate">Пользователь</div>
+          <div id="kab-email" class="text-sm text-on-surface-variant truncate">email@example.com</div>
+        </div>
+        <span class="text-xs font-bold bg-amber-100 text-amber-700 px-3 py-1.5 rounded-full flex-shrink-0">Free план</span>
+      </div>
+
+      <!-- PRO апгрейд -->
+      <div class="rounded-2xl p-6 bg-gradient-to-br from-indigo-600 via-purple-600 to-blue-600 text-white">
+        <div class="font-bold text-lg mb-1">Перейдите на Pro</div>
+        <div class="text-sm opacity-85 mb-4">Снимите ограничения — переносите неограниченное количество товаров</div>
+        <div class="flex flex-wrap gap-3 mb-5 text-sm opacity-90">
+          <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px]" style="font-variation-settings:'FILL' 1">check_circle</span>Безлимитные переносы</span>
+          <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px]" style="font-variation-settings:'FILL' 1">check_circle</span>Приоритетная поддержка</span>
+          <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px]" style="font-variation-settings:'FILL' 1">check_circle</span>API доступ</span>
+        </div>
+        <button onclick="closeKabinet(); openInfoModal('pricing')" class="px-6 py-2.5 bg-white/20 hover:bg-white/30 border border-white/30 rounded-xl text-white font-semibold text-sm transition-colors backdrop-blur-sm">
+          Перейти на Pro — 990 ₽/мес
+        </button>
+      </div>
+
+      <!-- Статистика -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="bg-surface-container-lowest rounded-xl p-4 text-center border border-outline-variant/10">
+          <div id="kab-stat-transferred" class="text-2xl font-black text-primary">0</div>
+          <div class="text-[11px] font-semibold text-outline uppercase tracking-wide mt-1">Перенесено</div>
+        </div>
+        <div class="bg-surface-container-lowest rounded-xl p-4 text-center border border-outline-variant/10">
+          <div id="kab-stat-jobs" class="text-2xl font-black text-primary">0</div>
+          <div class="text-[11px] font-semibold text-outline uppercase tracking-wide mt-1">Заданий</div>
+        </div>
+        <div class="bg-surface-container-lowest rounded-xl p-4 text-center border border-outline-variant/10">
+          <div id="kab-stat-marketplaces" class="text-2xl font-black text-primary">—</div>
+          <div class="text-[11px] font-semibold text-outline uppercase tracking-wide mt-1">Маркетплейс</div>
+        </div>
+        <div class="bg-surface-container-lowest rounded-xl p-4 text-center border border-outline-variant/10">
+          <div class="text-2xl font-black text-green-600">✓</div>
+          <div class="text-[11px] font-semibold text-outline uppercase tracking-wide mt-1">Активен</div>
+        </div>
+      </div>
+
+      <!-- Настройки аккаунта -->
+      <div>
+        <div class="text-[11px] font-bold uppercase tracking-widest text-outline mb-3 pb-2 border-b border-outline-variant/20">Настройки</div>
+        <form onsubmit="saveKabinetSettings(event)" class="flex flex-col gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <p class="panel-kicker">Каталог</p>
-              <h2>Выбор товаров</h2>
+              <label class="block text-xs font-semibold text-on-surface-variant mb-1.5">Имя</label>
+              <input id="kab-settings-name" type="text" placeholder="Ваше имя" class="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface-container-lowest text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all text-sm"/>
             </div>
-            <div class="inline-actions">
-              <button class="ghost-button" id="loadCategoriesButton" type="button">Загрузить категории</button>
-              <button class="primary-button" id="loadProductsButton" type="button">Загрузить товары</button>
-            </div>
-          </div>
-
-          <div class="toolbar-grid">
-            <label>
-              <span>Источник</span>
-              <select id="sourceMarketplace">
-                <option value="wb">Wildberries</option>
-                <option value="ozon">Ozon</option>
-                <option value="yandex_market">Yandex Market</option>
-              </select>
-            </label>
-            <label>
-              <span>Приемник</span>
-              <select id="targetMarketplace">
-                <option value="ozon">Ozon</option>
-                <option value="wb">Wildberries</option>
-                <option value="yandex_market">Yandex Market</option>
-              </select>
-            </label>
-            <label>
-              <span>Целевая категория</span>
-              <select id="targetCategorySelect">
-                <option value="">Автовыбор</option>
-              </select>
-            </label>
-          </div>
-
-          <div class="selection-bar">
-            <div id="catalogSummary">Товары еще не загружены.</div>
-            <div class="inline-actions">
-              <button class="ghost-button" id="previewButton" type="button">Предпросмотр</button>
-              <button class="primary-button" id="launchButton" type="button">Запустить перенос</button>
-            </div>
-          </div>
-
-          <div class="progress-panel hidden" id="previewProgressPanel" aria-live="polite">
-            <div class="progress-line">
-              <div class="progress-fill" id="previewProgressFill"></div>
-            </div>
-            <div class="progress-meta">
-              <span id="previewProgressText">Подготавливаю preview...</span>
-              <span id="previewProgressValue">0%</span>
-            </div>
-          </div>
-          <div class="product-grid" id="productGrid"></div>
-        </section>
-
-        <section class="panel">
-          <div class="panel-head">
             <div>
-              <p class="panel-kicker">Preview</p>
-              <h2>Маппинг и готовность</h2>
-            </div>
-            <div class="inline-actions">
-              <button class="secondary-button hidden" id="categoryMappingButton" type="button">Сопоставить категории</button>
-              <button class="secondary-button hidden" id="brandMappingButton" type="button">Сопоставить бренды</button>
+              <label class="block text-xs font-semibold text-on-surface-variant mb-1.5">Email</label>
+              <input id="kab-settings-email" type="email" placeholder="email@example.com" class="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface-container-lowest text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all text-sm"/>
             </div>
           </div>
-          <div class="preview-list" id="previewList">
-            <div class="empty-state">Сделайте preview, чтобы увидеть итоговые payload и обязательные поля.</div>
+          <div class="flex items-center gap-4">
+            <button type="submit" class="px-6 py-2.5 bg-gradient-to-br from-primary to-secondary text-white font-bold rounded-xl text-sm shadow-md hover:shadow-lg active:scale-95 transition-all">Сохранить изменения</button>
+            <button type="button" onclick="openInfoModal('support')" class="text-sm text-primary hover:underline font-medium">Изменить пароль</button>
           </div>
-        </section>
-
-        <section class="panel">
-          <div class="panel-head">
-            <div>
-              <p class="panel-kicker">Задачи</p>
-              <h2>История переносов</h2>
-            </div>
-            <button class="ghost-button" id="refreshJobsButton" type="button">Обновить задачи</button>
-          </div>
-          <div class="jobs-list" id="jobsList">
-            <div class="empty-state">Задач пока нет.</div>
-          </div>
-        </section>
-      </section>
-    </main>
-
-    <section class="modal hidden" id="productModal">
-      <div class="modal-backdrop" id="modalBackdrop"></div>
-      <div class="modal-card">
-        <div class="panel-head">
-          <div>
-            <p class="panel-kicker">Полная карточка</p>
-            <h2 id="modalTitle">Товар</h2>
-          </div>
-          <button class="ghost-button" id="closeModalButton" type="button">Закрыть</button>
-        </div>
-        <div class="modal-content" id="modalContent"></div>
+        </form>
       </div>
-    </section>
 
-    <section class="modal hidden" id="imageModal">
-      <div class="modal-backdrop" id="imageModalBackdrop"></div>
-      <div class="modal-card image-modal-card">
-        <div class="panel-head">
-          <div>
-            <p class="panel-kicker">Изображение</p>
-            <h2>Просмотр фото</h2>
-          </div>
-          <button class="ghost-button" id="closeImageModalButton" type="button">Закрыть</button>
-        </div>
-        <img class="zoomed-image" id="zoomedImage" alt="Изображение товара" />
+      <!-- Опасная зона -->
+      <div class="rounded-2xl border border-red-200 p-5">
+        <div class="text-xs font-bold uppercase tracking-widest text-red-600 mb-2">Опасная зона</div>
+        <p class="text-sm text-on-surface-variant mb-4">Удаление аккаунта — необратимое действие. Все данные и история переносов будут удалены.</p>
+        <button onclick="if(confirm('Вы уверены? Это действие необратимо.')) openInfoModal('support')" class="px-5 py-2 border border-red-300 text-red-600 hover:bg-red-50 rounded-xl text-sm font-semibold transition-colors">
+          Удалить аккаунт
+        </button>
       </div>
-    </section>
 
-    <aside class="toast hidden" id="toast"></aside>
-
-    <section class="modal hidden" id="previewCardModal">
-      <div class="modal-backdrop" id="previewCardBackdrop"></div>
-      <div class="modal-card">
-        <div class="panel-head">
-          <div>
-            <p class="panel-kicker">Preview карточки</p>
-            <h2 id="previewCardTitle">Карточка после переноса</h2>
-          </div>
-          <button class="ghost-button" id="closePreviewCardButton" type="button">Закрыть</button>
-        </div>
-        <div class="modal-content" id="previewCardContent"></div>
+      <!-- Выйти -->
+      <div class="pt-2 border-t border-outline-variant/20">
+        <button onclick="closeKabinet(); logOut()" class="text-sm font-medium text-slate-500 hover:text-red-500 transition-colors flex items-center gap-2">
+          <span class="material-symbols-outlined text-[18px]">logout</span>
+          Выйти из аккаунта
+        </button>
       </div>
-    </section>
+    </div>
+  </div>
+</div>
 
-    <section class="modal hidden" id="brandMappingModal">
-      <div class="modal-backdrop" id="brandMappingBackdrop"></div>
-      <div class="modal-card">
-        <div class="panel-head">
-          <div>
-            <p class="panel-kicker">Сопоставление брендов</p>
-            <h2 id="brandMappingTitle">Выберите бренды Ozon</h2>
-          </div>
-          <button class="ghost-button" id="closeBrandMappingButton" type="button">Закрыть</button>
+<!-- INFO MODAL -->
+<div id="info-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4">
+  <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeInfoModal()"></div>
+  <div class="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-y-auto p-8 z-10">
+    <button onclick="closeInfoModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors">
+      <span class="material-symbols-outlined">close</span>
+    </button>
+    <div id="info-modal-content"></div>
+  </div>
+</div>
+
+<!-- AUTH MODAL -->
+<div id="auth-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4">
+  <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeAuthModal()"></div>
+  <div class="relative bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 z-10">
+    <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors">
+      <span class="material-symbols-outlined">close</span>
+    </button>
+    <div id="auth-title" class="text-2xl font-bold text-on-surface mb-2">Войти</div>
+    <div id="auth-subtitle" class="text-sm text-on-surface-variant mb-6">Войдите, чтобы сохранять переносы и подключения</div>
+    <div id="auth-error" class="hidden mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm"></div>
+    <div class="flex flex-col gap-4">
+      <input id="auth-email" type="email" placeholder="Email" class="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface-container-lowest text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all text-sm"/>
+      <input id="auth-password" type="password" placeholder="Пароль" class="w-full px-4 py-3 rounded-xl border border-outline-variant bg-surface-container-lowest text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all text-sm" onkeydown="if(event.key==='Enter')submitAuth()"/>
+      <button onclick="submitAuth()" class="w-full py-3 bg-gradient-to-br from-primary to-secondary text-white font-bold rounded-xl shadow-md hover:shadow-lg active:scale-95 transition-all text-sm">
+        <span id="auth-btn-text">Войти</span>
+      </button>
+    </div>
+    <div class="mt-4 text-center text-sm text-on-surface-variant">
+      <span id="auth-switch-text">Нет аккаунта?</span>
+      <button onclick="toggleAuthMode()" id="auth-switch-btn" class="ml-1 text-primary font-semibold hover:underline">Зарегистрироваться</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== STATE =====
+const state = {
+  currentScreen: 1,
+  marketplace: '',
+  products: [],
+  selectedIds: new Set(),
+  token: null,
+  user: null,
+};
+
+// ===== NAVIGATION =====
+// Navigate via progress bar — only allow going back to already-visited steps
+function stepNav(n) {
+  if (n < state.currentScreen) goToScreen(n);
+}
+
+function goToScreen(n) {
+  document.getElementById('screen-' + state.currentScreen).classList.remove('active');
+  document.getElementById('screen-' + n).classList.add('active');
+  state.currentScreen = n;
+  updateProgressBar(n);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function updateProgressBar(n) {
+  const bar = document.getElementById('progress-bar');
+  if (n === 1) { bar.classList.add('hidden'); return; }
+  bar.classList.remove('hidden');
+  const fillPcts = [0, 0, 16, 33, 50, 66, 83];
+  document.getElementById('progress-fill').style.width = fillPcts[n] + '%';
+  document.querySelectorAll('.step-item').forEach(el => {
+    const s = parseInt(el.dataset.step);
+    const circle = el.querySelector('.step-circle');
+    const label = el.querySelector('.step-label');
+    if (s < n) {
+      circle.className = 'step-circle w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold outline outline-4 outline-white bg-primary text-white transition-all';
+      circle.innerHTML = '<span class="material-symbols-outlined text-[14px]" style="font-variation-settings:\'FILL\' 1">check</span>';
+      label.className = 'step-label text-[10px] font-bold uppercase tracking-wider text-primary';
+    } else if (s === n) {
+      circle.className = 'step-circle w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold outline outline-4 outline-white bg-white border-2 border-primary text-primary transition-all';
+      circle.innerHTML = s;
+      label.className = 'step-label text-[10px] font-bold uppercase tracking-wider text-on-surface';
+    } else {
+      circle.className = 'step-circle w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold outline outline-4 outline-white bg-surface-container text-outline transition-all';
+      circle.innerHTML = s;
+      label.className = 'step-label text-[10px] font-bold uppercase tracking-wider text-outline';
+    }
+  });
+}
+
+// ===== SCREEN 1: FETCH =====
+async function fetchProducts() {
+  const url = document.getElementById('url-input').value.trim();
+  if (!url) return;
+  const btn = document.getElementById('fetch-btn');
+  const txt = document.getElementById('fetch-btn-text');
+  const spin = document.getElementById('fetch-spinner');
+  const errEl = document.getElementById('fetch-error');
+  errEl.classList.add('hidden');
+  btn.disabled = true;
+  txt.textContent = 'Загружаю...';
+  spin.classList.remove('hidden');
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (state.token) headers['Authorization'] = `Bearer ${state.token}`;
+    const res = await fetch('/api/v1/public/fetch', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ url, limit: 24 })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Ошибка загрузки');
+    if (data.requires_credentials) {
+      const msg = data.message || 'Для этой площадки необходимо подключение через API';
+      errEl.textContent = state.token ? msg : msg + ' — войдите в аккаунт и добавьте API-ключ.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+    state.marketplace = data.marketplace;
+    state.products = data.products || [];
+    renderScreen2(data);
+    goToScreen(2);
+  } catch (e) {
+    errEl.textContent = e.message;
+    errEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    txt.textContent = 'Подтянуть товары';
+    spin.classList.add('hidden');
+  }
+}
+
+document.getElementById('url-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') fetchProducts();
+});
+
+// ===== SCREEN 2: PRODUCTS =====
+function renderScreen2(data) {
+  state.selectedIds.clear();
+  const labels = { wb: 'Wildberries', ozon: 'Ozon', yandex_market: 'Яндекс.Маркет' };
+  document.getElementById('s2-marketplace-badge').textContent = labels[data.marketplace] || data.marketplace;
+  document.getElementById('s2-total').textContent = (data.total || data.products.length) + ' товаров';
+  renderProductGrid(state.products);
+}
+
+function renderProductGrid(products) {
+  const grid = document.getElementById('products-grid');
+  const empty = document.getElementById('s2-empty');
+  if (!products.length) {
+    grid.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+  const isSelected = id => state.selectedIds.has(id);
+  grid.innerHTML = products.map(p => {
+    const img = p.images && p.images[0] ? p.images[0] : '';
+    const price = p.price ? Number(p.price).toLocaleString('ru') + ' ₽' : '';
+    const cat = p.category_name || '';
+    const sel = isSelected(p.id);
+    return `<div class="product-card${sel ? ' selected' : ''} group relative bg-surface-container-lowest rounded-xl overflow-hidden hover:-translate-y-1 transition-all duration-200 cursor-pointer shadow-sm" data-id="${p.id}" onclick="toggleProduct(this,'${p.id}')">
+      <div class="absolute top-3 right-3 z-10">
+        <div class="w-6 h-6 rounded-md border-2 ${sel ? 'bg-primary border-primary' : 'border-outline-variant bg-white'} flex items-center justify-center transition-all">
+          <span class="material-symbols-outlined text-[14px] text-white ${sel ? '' : 'hidden'}" style="font-variation-settings:'FILL' 1">check</span>
         </div>
-        <div class="modal-content" id="brandMappingContent"></div>
       </div>
-    </section>
+      ${img
+        ? `<div class="h-52 bg-surface-container-low overflow-hidden"><img src="${img}" alt="${escHtml(p.title)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy"/></div>`
+        : `<div class="h-52 bg-surface-container flex items-center justify-center"><span class="material-symbols-outlined text-5xl text-outline">image</span></div>`}
+      <div class="p-5">
+        ${cat ? `<span class="text-[10px] font-bold uppercase tracking-widest text-outline mb-1 block">${escHtml(cat)}</span>` : ''}
+        <h3 class="text-base font-bold text-on-surface mb-1 group-hover:text-primary transition-colors line-clamp-2">${escHtml(p.title)}</h3>
+        ${price ? `<p class="text-xl font-black text-on-surface">${price}</p>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+  updateSelectionUI();
+}
 
-    <section class="modal hidden" id="categoryMappingModal">
-      <div class="modal-backdrop" id="categoryMappingBackdrop"></div>
-      <div class="modal-card">
-        <div class="panel-head">
-          <div>
-            <p class="panel-kicker">Сопоставление категорий</p>
-            <h2 id="categoryMappingTitle">Выберите категории назначения</h2>
-          </div>
-          <button class="ghost-button" id="closeCategoryMappingButton" type="button">Закрыть</button>
+function toggleProduct(el, id) {
+  if (state.selectedIds.has(id)) {
+    state.selectedIds.delete(id);
+  } else {
+    state.selectedIds.add(id);
+  }
+  renderProductGrid(getCurrentFilteredProducts());
+}
+
+function getCurrentFilteredProducts() {
+  const q = document.getElementById('s2-search').value.toLowerCase();
+  return q ? state.products.filter(p => p.title.toLowerCase().includes(q)) : state.products;
+}
+
+function updateSelectionUI() {
+  const n = state.selectedIds.size;
+  document.getElementById('s2-selected-count').textContent = n;
+  document.getElementById('s2-selected-count-bar').textContent = n;
+  document.getElementById('s2-continue-btn').disabled = n === 0;
+}
+
+function filterProducts() {
+  renderProductGrid(getCurrentFilteredProducts());
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ===== SCREEN 3: PREVIEW =====
+function goToPreview() {
+  const selected = state.products.filter(p => state.selectedIds.has(p.id));
+  if (!selected.length) return;
+  const p = selected[0];
+  const img = p.images && p.images[0] ? p.images[0] : '';
+  const price = p.price ? Number(p.price).toLocaleString('ru') + ' ₽' : '';
+
+  function setImg(imgEl, placeholderEl, src) {
+    if (src) {
+      imgEl.src = src;
+      imgEl.classList.remove('hidden');
+      placeholderEl.classList.add('hidden');
+    } else {
+      imgEl.classList.add('hidden');
+      placeholderEl.classList.remove('hidden');
+    }
+  }
+  setImg(document.getElementById('s3-src-img'), document.getElementById('s3-src-img-placeholder'), img);
+  setImg(document.getElementById('s3-dst-img'), document.getElementById('s3-dst-img-placeholder'), img);
+
+  document.getElementById('s3-src-title').textContent = p.title;
+  document.getElementById('s3-src-price').textContent = price;
+  document.getElementById('s3-src-desc').textContent = p.description || 'Описание отсутствует';
+  document.getElementById('s3-dst-title').textContent = p.title + ' — адаптировано для Ozon';
+  document.getElementById('s3-dst-price').textContent = price;
+
+  const raw = p.raw || {};
+  document.getElementById('s3-src-attrs').innerHTML = `
+    <div class="text-slate-500">ID товара</div><div class="font-medium">${escHtml(p.id)}</div>
+    <div class="text-slate-500">Бренд</div><div class="font-medium">${escHtml(raw.brand || p.category_name || '—')}</div>
+    <div class="text-slate-500">Цена</div><div class="font-medium">${price || '—'}</div>
+    <div class="text-slate-500">Валюта</div><div class="font-medium">RUB</div>
+  `;
+  document.getElementById('s3-dst-attrs').innerHTML = ['Тип товара', 'Категория Ozon', 'НДС', 'Валюта'].map(label =>
+    `<div class="flex items-center justify-between p-3 bg-surface-container-low rounded-lg">
+      <div><span class="text-[10px] font-bold text-slate-400 uppercase tracking-tight block">${label}</span><span class="text-sm font-semibold">Автоматически</span></div>
+      <span class="material-symbols-outlined text-emerald-500" style="font-variation-settings:'FILL' 1">check_circle</span>
+    </div>`
+  ).join('');
+  goToScreen(3);
+}
+
+// ===== SCREEN 4: CONNECT =====
+async function startOzonOAuth() {
+  try {
+    const res = await fetch('/api/v1/oauth/ozon/status').then(r => r.json()).catch(() => null);
+    if (!res || res.demo || !res.configured) {
+      alert('OAuth не настроен. Добавьте OZON_CLIENT_ID и OZON_CLIENT_SECRET в переменные окружения, затем перезапустите сервер.');
+      return;
+    }
+    // Real OAuth: redirect to authorization URL
+    window.location.href = '/api/v1/oauth/ozon/start';
+  } catch (e) {
+    alert('Не удалось проверить статус OAuth: ' + e.message);
+  }
+}
+
+function connectViaAPI() {
+  const clientId = document.getElementById('api-client-id').value.trim();
+  const apiKey = document.getElementById('api-key').value.trim();
+  if (!clientId || !apiKey) { alert('Введите Client ID и API Key'); return; }
+  goToScreen(5);
+  startTransferSimulation();
+}
+
+// ===== SCREEN 5: PROGRESS =====
+function startTransferSimulation() {
+  const total = Math.max(state.selectedIds.size, 1);
+  const durations = [1200, 2200, 3000, 2000, 1500];
+  const steps = document.querySelectorAll('.transfer-step');
+  steps.forEach(s => {
+    s.querySelector('.step-icon').className = 'step-icon w-8 h-8 rounded-full bg-surface-container flex items-center justify-center flex-shrink-0 text-outline';
+    s.querySelector('.step-status').textContent = 'В очереди';
+    s.querySelector('.step-status').className = 'step-status text-xs text-outline font-medium';
+  });
+  updateCircularProgress(0, 0, total);
+
+  function activateStep(idx) {
+    if (idx >= steps.length) { setTimeout(() => { renderScreen6(total); goToScreen(6); }, 500); return; }
+    const s = steps[idx];
+    s.querySelector('.step-icon').className = 'step-icon w-8 h-8 rounded-full bg-primary-fixed flex items-center justify-center flex-shrink-0 text-primary animate-spin';
+    s.querySelector('.step-status').textContent = 'Выполняется...';
+    s.querySelector('.step-status').className = 'step-status text-xs text-primary font-bold';
+    setTimeout(() => {
+      s.querySelector('.step-icon').className = 'step-icon w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 text-emerald-600';
+      s.querySelector('.step-icon').innerHTML = '<span class="material-symbols-outlined text-lg" style="font-variation-settings:\'wght\' 700">done_all</span>';
+      s.querySelector('.step-status').textContent = 'Завершено';
+      s.querySelector('.step-status').className = 'step-status text-xs text-emerald-600 font-medium';
+      const pct = Math.round((idx + 1) / steps.length * 100);
+      const done = Math.round((idx + 1) / steps.length * total);
+      updateCircularProgress(pct, done, total);
+      activateStep(idx + 1);
+    }, durations[idx]);
+  }
+  activateStep(0);
+}
+
+function updateCircularProgress(pct, done, total) {
+  document.getElementById('progress-pct').textContent = pct + '%';
+  document.getElementById('progress-count').textContent = done + ' из ' + total + ' ' + pluralProducts(total) + ' перенесено';
+  const circumference = 2 * Math.PI * 90;
+  document.getElementById('progress-circle').style.strokeDashoffset = circumference - (pct / 100) * circumference;
+}
+
+// ===== SCREEN 6: SUCCESS =====
+function renderScreen6(total) {
+  document.getElementById('s6-subtitle').textContent = total + ' ' + pluralProducts(total) + ' теперь доступны на Ozon';
+  const selected = state.products.filter(p => state.selectedIds.has(p.id));
+  document.getElementById('s6-products-list').innerHTML = selected.slice(0, 5).map(p => {
+    const img = p.images && p.images[0] ? p.images[0] : '';
+    return `<div class="flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <div class="w-14 h-14 rounded-lg bg-surface-container-low overflow-hidden flex-shrink-0 flex items-center justify-center">
+          ${img ? `<img src="${img}" alt="${escHtml(p.title)}" class="w-full h-full object-cover" loading="lazy"/>` : '<span class="material-symbols-outlined text-3xl text-outline">image</span>'}
         </div>
-        <div class="modal-content" id="categoryMappingContent"></div>
+        <div><h3 class="font-semibold text-on-surface line-clamp-1">${escHtml(p.title)}</h3><p class="text-xs text-on-surface-variant">ID: ${escHtml(p.id)}</p></div>
       </div>
-    </section>
+      <span class="px-3 py-1 bg-green-50 text-green-700 text-xs font-bold rounded-full uppercase tracking-wider">Активен</span>
+    </div>`;
+  }).join('');
+}
 
-    <script src="/static/app.js?v=16"></script>
-  </body>
+function pluralProducts(n) {
+  if (n % 10 === 1 && n % 100 !== 11) return 'товар';
+  if ([2,3,4].includes(n % 10) && ![12,13,14].includes(n % 100)) return 'товара';
+  return 'товаров';
+}
+
+// ===== INFO MODAL =====
+const INFO_CONTENT = {
+  about: `
+    <h2 class="text-2xl font-bold text-on-surface mb-4">О сервисе</h2>
+    <p class="text-on-surface-variant mb-4">Perenoska — сервис автоматического переноса товарных карточек между маркетплейсами: Wildberries, Ozon и Яндекс.Маркет.</p>
+    <p class="text-on-surface-variant mb-4">Мы автоматически парсим карточки с исходного маркетплейса, адаптируем описания, категории и атрибуты под требования целевой площадки и создаём готовые к публикации карточки.</p>
+    <h3 class="font-bold text-on-surface mt-6 mb-2">Как это работает</h3>
+    <ol class="list-decimal list-inside text-on-surface-variant space-y-2 text-sm">
+      <li>Вставьте ссылку на магазин или товар</li>
+      <li>Выберите товары для переноса</li>
+      <li>Проверьте предпросмотр адаптированных карточек</li>
+      <li>Подключите целевой маркетплейс через API</li>
+      <li>Запустите перенос — готово!</li>
+    </ol>
+    <h3 class="font-bold text-on-surface mt-6 mb-2">Поддерживаемые маркетплейсы</h3>
+    <ul class="list-disc list-inside text-on-surface-variant space-y-1 text-sm">
+      <li>Wildberries → Ozon, Яндекс.Маркет</li>
+      <li>Ozon → Wildberries, Яндекс.Маркет</li>
+      <li>Яндекс.Маркет → Wildberries, Ozon</li>
+    </ul>`,
+  pricing: `
+    <h2 class="text-2xl font-bold text-on-surface mb-6">Тарифы</h2>
+    <div class="flex flex-col gap-4">
+      <div class="border border-outline-variant rounded-2xl p-6">
+        <div class="font-bold text-lg text-on-surface mb-1">Бесплатно</div>
+        <div class="text-3xl font-black text-on-surface mb-4">0 ₽<span class="text-base font-normal text-outline">/мес</span></div>
+        <ul class="text-sm text-on-surface-variant space-y-2">
+          <li class="flex gap-2"><span class="text-green-500 material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1">check_circle</span>До 3 товаров в месяц</li>
+          <li class="flex gap-2"><span class="text-green-500 material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1">check_circle</span>Все маркетплейсы</li>
+          <li class="flex gap-2"><span class="text-green-500 material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1">check_circle</span>Предпросмотр карточек</li>
+        </ul>
+      </div>
+      <div class="border-2 border-primary rounded-2xl p-6 bg-gradient-to-br from-primary/5 to-secondary/5">
+        <div class="flex justify-between items-center mb-1">
+          <span class="font-bold text-lg text-on-surface">PRO</span>
+          <span class="text-xs font-bold bg-primary text-white px-3 py-1 rounded-full">Популярный</span>
+        </div>
+        <div class="text-3xl font-black text-primary mb-4">990 ₽<span class="text-base font-normal text-outline">/мес</span></div>
+        <ul class="text-sm text-on-surface-variant space-y-2">
+          <li class="flex gap-2"><span class="text-primary material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1">check_circle</span>Неограниченное количество товаров</li>
+          <li class="flex gap-2"><span class="text-primary material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1">check_circle</span>Все маркетплейсы</li>
+          <li class="flex gap-2"><span class="text-primary material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1">check_circle</span>Автоматическое сопоставление категорий</li>
+          <li class="flex gap-2"><span class="text-primary material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1">check_circle</span>Приоритетная поддержка</li>
+          <li class="flex gap-2"><span class="text-primary material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1">check_circle</span>14 дней бесплатного пробного периода</li>
+        </ul>
+        <button onclick="closeInfoModal(); openAuthModal('register')" class="mt-4 w-full py-3 bg-gradient-to-br from-primary to-secondary text-white font-bold rounded-xl text-sm">Попробовать бесплатно</button>
+      </div>
+    </div>`,
+  support: `
+    <h2 class="text-2xl font-bold text-on-surface mb-4">Поддержка</h2>
+    <p class="text-on-surface-variant mb-6">Мы готовы помочь с любыми вопросами по работе сервиса.</p>
+    <div class="flex flex-col gap-3">
+      <a href="mailto:support@perenoska.ru" class="flex items-center gap-3 p-4 rounded-2xl bg-surface-container hover:bg-surface-container-high transition-colors">
+        <span class="material-symbols-outlined text-primary">mail</span>
+        <div>
+          <div class="font-semibold text-on-surface text-sm">Email</div>
+          <div class="text-on-surface-variant text-sm">support@perenoska.ru</div>
+        </div>
+      </a>
+      <a href="https://t.me/perenoska_support" target="_blank" class="flex items-center gap-3 p-4 rounded-2xl bg-surface-container hover:bg-surface-container-high transition-colors">
+        <span class="material-symbols-outlined text-primary">send</span>
+        <div>
+          <div class="font-semibold text-on-surface text-sm">Telegram</div>
+          <div class="text-on-surface-variant text-sm">@perenoska_support</div>
+        </div>
+      </a>
+    </div>
+    <p class="text-xs text-outline mt-6">Время ответа: в рабочие дни до 24 часов.</p>`,
+  privacy: `
+    <h2 class="text-2xl font-bold text-on-surface mb-4">Политика конфиденциальности</h2>
+    <p class="text-xs text-outline mb-4">Последнее обновление: 01.01.2024</p>
+    <div class="text-sm text-on-surface-variant space-y-4">
+      <p>Perenoska собирает минимально необходимые данные для работы сервиса: email-адрес при регистрации и API-ключи маркетплейсов для выполнения переносов.</p>
+      <p>API-ключи хранятся в зашифрованном виде и используются исключительно для взаимодействия с API маркетплейсов по вашему запросу. Мы не передаём ваши данные третьим лицам.</p>
+      <p>Данные о товарах кэшируются временно только для обработки текущего запроса на перенос и не хранятся постоянно.</p>
+      <p>Вы можете запросить удаление своего аккаунта и всех связанных данных в любое время, написав на support@perenoska.ru.</p>
+    </div>`,
+  terms: `
+    <h2 class="text-2xl font-bold text-on-surface mb-4">Пользовательское соглашение</h2>
+    <p class="text-xs text-outline mb-4">Последнее обновление: 01.01.2024</p>
+    <div class="text-sm text-on-surface-variant space-y-4">
+      <p>Используя сервис Perenoska, вы соглашаетесь с настоящими условиями.</p>
+      <p><strong class="text-on-surface">Разрешённое использование.</strong> Сервис предназначен для переноса карточек товаров, которые принадлежат вам или вашей организации. Перенос чужих товаров без права на них запрещён.</p>
+      <p><strong class="text-on-surface">API маркетплейсов.</strong> Вы несёте ответственность за соответствие использования сервиса правилам API каждого маркетплейса.</p>
+      <p><strong class="text-on-surface">Ограничение ответственности.</strong> Сервис предоставляется «как есть». Мы не несём ответственности за отказ API маркетплейсов, изменение их форматов или отклонение карточек на стороне площадки.</p>
+      <p><strong class="text-on-surface">Оплата.</strong> Бесплатный тариф включает 3 товара в месяц. PRO-тариф оплачивается ежемесячно и может быть отменён в любое время.</p>
+    </div>`
+};
+
+function openInfoModal(key) {
+  const content = INFO_CONTENT[key];
+  if (!content) return;
+  document.getElementById('info-modal-content').innerHTML = content;
+  document.getElementById('info-modal').classList.remove('hidden');
+}
+
+function closeInfoModal() {
+  document.getElementById('info-modal').classList.add('hidden');
+}
+
+// ===== AUTH MODAL =====
+let authMode = 'login';
+
+function openAuthModal(mode) {
+  authMode = mode || 'login';
+  _updateAuthModalUI();
+  document.getElementById('auth-modal').classList.remove('hidden');
+  document.getElementById('auth-email').focus();
+}
+
+function closeAuthModal() {
+  document.getElementById('auth-modal').classList.add('hidden');
+  document.getElementById('auth-error').classList.add('hidden');
+  document.getElementById('auth-email').value = '';
+  document.getElementById('auth-password').value = '';
+}
+
+function toggleAuthMode() {
+  authMode = authMode === 'login' ? 'register' : 'login';
+  _updateAuthModalUI();
+}
+
+function _updateAuthModalUI() {
+  const isLogin = authMode === 'login';
+  document.getElementById('auth-title').textContent = isLogin ? 'Войти' : 'Регистрация';
+  document.getElementById('auth-subtitle').textContent = isLogin
+    ? 'Войдите, чтобы сохранять переносы и подключения'
+    : 'Создайте аккаунт — это бесплатно';
+  document.getElementById('auth-btn-text').textContent = isLogin ? 'Войти' : 'Создать аккаунт';
+  document.getElementById('auth-switch-text').textContent = isLogin ? 'Нет аккаунта?' : 'Уже есть аккаунт?';
+  document.getElementById('auth-switch-btn').textContent = isLogin ? 'Зарегистрироваться' : 'Войти';
+  document.getElementById('auth-error').classList.add('hidden');
+}
+
+async function submitAuth() {
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const errEl = document.getElementById('auth-error');
+  errEl.classList.add('hidden');
+  if (!email || !password) { errEl.textContent = 'Введите email и пароль'; errEl.classList.remove('hidden'); return; }
+  const endpoint = authMode === 'login' ? '/api/v1/auth/login' : '/api/v1/auth/register';
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Ошибка');
+    state.token = data.access_token;
+    state.user = data.user;
+    closeAuthModal();
+    _updateNavUser(data.user.email);
+  } catch (e) {
+    errEl.textContent = e.message;
+    errEl.classList.remove('hidden');
+  }
+}
+
+function _updateNavUser(email) {
+  const navArea = document.getElementById('nav-auth-area');
+  if (navArea) {
+    const initial = (email || 'U').slice(0, 1).toUpperCase();
+    navArea.innerHTML = `
+      <button onclick="openKabinet()" class="flex items-center gap-2 text-xs md:text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors px-2 py-1 rounded-lg hover:bg-indigo-50">
+        <span class="w-7 h-7 rounded-full bg-gradient-to-br from-[#c926ff] to-[#0078ff] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">${initial}</span>
+        <span class="hidden md:inline truncate max-w-[120px]">${email}</span>
+      </button>`;
+  }
+}
+
+function logOut() {
+  state.token = null;
+  state.user = null;
+  const navArea = document.getElementById('nav-auth-area');
+  if (navArea) {
+    navArea.innerHTML = `
+      <button onclick="openAuthModal('login')" class="text-xs md:text-sm font-medium text-slate-500 hover:text-indigo-500 transition-colors">Войти</button>
+      <button onclick="openAuthModal('register')" class="bg-primary hover:bg-primary-container text-white px-3 md:px-5 py-2 rounded-full text-xs md:text-sm font-medium transition-colors">Регистрация</button>`;
+  }
+}
+
+// ===== ЛИЧНЫЙ КАБИНЕТ =====
+function openKabinet() {
+  if (!state.user) { openAuthModal('login'); return; }
+  const email = state.user.email || '';
+  const initial = (email || 'U').slice(0, 1).toUpperCase();
+  const el = (id) => document.getElementById(id);
+  if (el('kab-avatar')) el('kab-avatar').textContent = initial;
+  if (el('kab-name')) el('kab-name').textContent = email || 'Пользователь';
+  if (el('kab-email')) el('kab-email').textContent = email;
+  if (el('kab-settings-email')) el('kab-settings-email').value = email;
+  if (el('kab-stat-marketplaces')) {
+    el('kab-stat-marketplaces').textContent = state.sourceMarketplace || 'WB';
+  }
+  document.getElementById('kabinet-modal').classList.remove('hidden');
+}
+
+function closeKabinet() {
+  document.getElementById('kabinet-modal').classList.add('hidden');
+}
+
+function saveKabinetSettings(e) {
+  e.preventDefault();
+  const name = document.getElementById('kab-settings-name')?.value.trim();
+  const email = document.getElementById('kab-settings-email')?.value.trim();
+  // Show a simple confirmation inside the form area
+  const btn = e.target.querySelector('button[type="submit"]');
+  if (btn) {
+    const orig = btn.textContent;
+    btn.textContent = '✓ Сохранено';
+    btn.disabled = true;
+    setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 2000);
+  }
+}
+
+// ===== OZON OAUTH CALLBACK HANDLING =====
+(function handleOAuthCallback() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('ozon_connected') === '1') {
+    // Remove param from URL without full reload
+    const cleanUrl = window.location.pathname;
+    history.replaceState({}, '', cleanUrl);
+    // Advance to transfer progress screen and show simulation
+    goToScreen(5);
+    startTransferSimulation();
+  } else if (params.get('ozon_error')) {
+    const cleanUrl = window.location.pathname;
+    history.replaceState({}, '', cleanUrl);
+    alert('Ozon вернул ошибку авторизации: ' + params.get('ozon_error'));
+  }
+})();
+</script>
+</body>
 </html>

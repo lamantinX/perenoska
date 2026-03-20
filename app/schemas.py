@@ -224,3 +224,18 @@ class CategoryMappingResponse(BaseModel):
     target_key: str
     target_label: str
     target_context: dict[str, Any] = Field(default_factory=dict)
+
+
+class PublicFetchRequest(BaseModel):
+    url: str
+    limit: int = Field(default=20, ge=1, le=100)
+
+
+class PublicFetchResponse(BaseModel):
+    marketplace: str  # "wb", "ozon", "yandex_market"
+    source_type: str  # "seller", "product"
+    source_id: str
+    products: list[ProductSummary]
+    total: int
+    message: str | None = None
+    requires_credentials: bool = False
