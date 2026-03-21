@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.clients.base import MarketplaceClient
+from app.clients.openrouter import OpenRouterClient
 from app.clients.ozon import OzonClient
 from app.clients.wb import WBClient
 from app.clients.yandex_market import YandexMarketClient
@@ -9,6 +10,7 @@ from app.db import Database
 from app.schemas import Marketplace
 from app.security import CredentialVault, PasswordManager
 from app.services.auth import AuthService
+from app.services.category_mapper import CategoryMapper
 from app.services.connections import ConnectionService
 from app.services.mapping import MappingService
 
@@ -41,4 +43,14 @@ class ServiceContainer:
         self.connection_service = ConnectionService(self.database, self.vault)
         self.auth_service = AuthService(self.database, self.password_manager, settings.session_ttl_hours)
         self.mapping_service = MappingService()
+        self.openrouter_client = OpenRouterClient(
+            base_url=settings.openrouter_base_url,
+            api_key=settings.openrouter_api_key,
+            timeout=settings.http_timeout_seconds,
+        )
+        self.category_mapper = CategoryMapper(
+            database=self.database,
+            openrouter=self.openrouter_client,
+            settings=settings,
+        )
 

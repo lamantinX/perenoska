@@ -22,6 +22,7 @@ from app.schemas import (
     TransferPreviewResponse,
 )
 from app.services.catalog import CatalogService
+from app.services.category_mapper import CategoryMapper, MappingResult, _flatten_categories
 from app.services.connections import ConnectionService
 from app.services.container import MarketplaceClientFactory
 from app.services.mapping import MappingService
@@ -119,12 +120,14 @@ class TransferService:
         catalog_service: CatalogService,
         client_factory: MarketplaceClientFactory,
         mapping_service: MappingService,
+        category_mapper: CategoryMapper | None = None,
     ) -> None:
         self.database = database
         self.connection_service = connection_service
         self.catalog_service = catalog_service
         self.client_factory = client_factory
         self.mapping_service = mapping_service
+        self.category_mapper = category_mapper
 
     async def preview(
         self,
@@ -179,6 +182,7 @@ class TransferService:
             category_attributes_cache: dict[tuple[int, int | None, bool], list] = {}
             dictionary_options_cache: dict[tuple[int, int, int], list[dict]] = {}
             semaphore = asyncio.Semaphore(4)
+            ozon_flat = _flatten_categories(target_categories) if self.category_mapper else []
 
             async def build_preview_item(product_id: str) -> tuple[TransferPreviewItem, list[dict], dict | None, dict | None]:
                 async with semaphore:
@@ -197,12 +201,34 @@ class TransferService:
                     if target_category is None:
                         target_category = self.mapping_service.auto_match_category(product, target_categories)
 
+                # Try CategoryMapper (fuzzy/embedding/LLM) as additional fallback
+                auto_mapping_result: MappingResult | None = None
+                if target_category is None and self.category_mapper and product.category_name:
+                    wb_node = CategoryNode(
+                        id=product.category_id or 0,
+                        name=product.category_name or product.title,
+                    )
+                    auto_mapping_result = await self.category_mapper.map_category(
+                        wb_node, ozon_flat, wb_path=product.category_name or "",
+                    )
+                    if auto_mapping_result.confidence >= self.category_mapper.settings.catmatch_llm_min:
+                        target_category = target_categories_by_id.get(auto_mapping_result.ozon_id)
+
                 warnings: list[str] = []
                 price_scope_warning = self._wb_price_scope_warning(user_id, payload.source_marketplace, product.price)
                 if price_scope_warning:
                     warnings.append(price_scope_warning)
                 if target_category is None:
-                    warnings.append("???? ?????????????? ?????????????????????????? ???????????????????? ?????????????? ??????????????????.")
+                    warnings.append("Не удалось автоматически подобрать целевую категорию.")
+                    issue = self._category_issue_payload(
+                        product=product,
+                        source_marketplace=payload.source_marketplace.value,
+                        source_categories_by_id=source_categories_by_id,
+                        target_marketplace=payload.target_marketplace.value,
+                        target_categories=target_categories,
+                    )
+                    if auto_mapping_result and auto_mapping_result.alternatives:
+                        issue["suggestions"] = auto_mapping_result.alternatives
                     return (
                         TransferPreviewItem(
                             product_id=product.id,
@@ -213,13 +239,7 @@ class TransferService:
                             warnings=warnings,
                         ),
                         [],
-                        self._category_issue_payload(
-                            product=product,
-                            source_marketplace=payload.source_marketplace.value,
-                            source_categories_by_id=source_categories_by_id,
-                            target_marketplace=payload.target_marketplace.value,
-                            target_categories=target_categories,
-                        ),
+                        issue,
                         None,
                     )
 

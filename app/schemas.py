@@ -201,6 +201,41 @@ class DictionaryMappingResponse(BaseModel):
     target_dictionary_value: str
 
 
+class AutoMappingResult(BaseModel):
+    wb_id: int
+    ozon_id: int
+    wb_name: str
+    ozon_name: str
+    confidence: float
+    source: str
+    alternatives: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class AutoMappingStatusResponse(BaseModel):
+    total_wb_categories: int
+    mapped: int
+    pending_review: int
+    high_confidence: int
+    medium_confidence: int
+    low_confidence: int
+
+
+class ReviewQueueItem(BaseModel):
+    id: int
+    wb_id: int
+    wb_name: str
+    wb_path: str
+    candidates: list[dict[str, Any]] = Field(default_factory=list)
+    reason: str
+    status: str
+    created_at: str
+
+
+class ReviewResolveRequest(BaseModel):
+    ozon_id: int
+    ozon_name: str = Field(min_length=1)
+
+
 class CategoryMappingItem(BaseModel):
     type: str
     source_key: str = Field(min_length=1)
