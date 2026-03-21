@@ -1,1 +1,0 @@
-/* JavaScript moved to index.html inline — this file kept for compatibility */

@@ -231,6 +231,102 @@ class PublicFetchRequest(BaseModel):
     limit: int = Field(default=20, ge=1, le=100)
 
 
+# ---------------------------------------------------------------------------
+# Admin panel schemas
+# ---------------------------------------------------------------------------
+
+
+class AdminUserResponse(BaseModel):
+    id: int
+    email: str
+    phone: str | None = None
+    is_blocked: bool
+    created_at: str
+    plan_expires_at: str | None = None
+    transfer_limit: int | None = None
+    transfer_count: int
+    connections: list[str]
+
+
+class AdminTransferResponse(BaseModel):
+    id: int
+    user_id: int
+    user_email: str
+    source_marketplace: str
+    target_marketplace: str
+    status: str
+    created_at: str
+    updated_at: str
+    error_message: str | None = None
+    base_token: str | None = None
+    external_task_id: str | None = None
+
+
+class TransfersByDayEntry(BaseModel):
+    date: str
+    count: int
+    errors: int
+
+
+class TopUserEntry(BaseModel):
+    email: str
+    count: int
+
+
+class AdminStatsResponse(BaseModel):
+    total_users: int
+    total_transfers: int
+    today_transfers: int
+    successful_transfers: int
+    failed_transfers: int
+    top_users: list[TopUserEntry]
+    transfers_by_day: list[TransfersByDayEntry]
+
+
+class SystemSettings(BaseModel):
+    registration_enabled: bool
+    banner_text: str
+    default_transfer_limit: int
+
+
+class AdminUpdateUser(BaseModel):
+    phone: str | None = None
+    is_blocked: bool | None = None
+    plan_expires_at: str | None = None
+    transfer_limit: int | None = None
+
+
+class PaymentHistoryEntry(BaseModel):
+    id: int
+    plan_name: str
+    amount: float
+    currency: str
+    created_at: str
+
+
+class AddPaymentEntry(BaseModel):
+    plan_name: str
+    amount: float
+    currency: str = "RUB"
+
+
+class AdminJobLogEntry(BaseModel):
+    id: int
+    token: str
+    base_token: str
+    sequence_no: int
+    event_type: str
+    operation: str
+    request_url: str
+    status_code: int | None = None
+    duration_ms: int | None = None
+    error_text: str | None = None
+
+
+class AdminUserDetailResponse(AdminUserResponse):
+    payment_history: list[PaymentHistoryEntry] = Field(default_factory=list)
+
+
 class PublicFetchResponse(BaseModel):
     marketplace: str  # "wb", "ozon", "yandex_market"
     source_type: str  # "seller", "product"
