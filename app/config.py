@@ -16,6 +16,14 @@ class Settings:
     http_timeout_seconds: float
     yandex_market_base_url: str = "https://api.partner.market.yandex.ru"
     admin_emails: tuple[str, ...] = ()
+    openrouter_api_key: str = ""
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    catmatch_fuzzy_min: float = 75.0
+    catmatch_embed_min: float = 0.82
+    catmatch_llm_min: float = 60.0
+    catmatch_llm_model: str = "openai/gpt-5.4-nano"
+    catmatch_embed_model: str = "openai/text-embedding-3-small"
+    catmatch_llm_batch_size: int = 15
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -37,5 +45,14 @@ class Settings:
             ).rstrip("/"),
             http_timeout_seconds=float(os.getenv("HTTP_TIMEOUT_SECONDS", "30")),
             admin_emails=admin_emails,
+            openrouter_api_key=os.getenv("OPENROUTER_API_KEY", ""),
+            openrouter_base_url=os.getenv(
+                "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"
+            ).rstrip("/"),
+            catmatch_fuzzy_min=float(os.getenv("CATMATCH_FUZZY_MIN", "75.0")),
+            catmatch_embed_min=float(os.getenv("CATMATCH_EMBED_MIN", "0.82")),
+            catmatch_llm_min=float(os.getenv("CATMATCH_LLM_MIN", "60.0")),
+            catmatch_llm_model=os.getenv("CATMATCH_LLM_MODEL", "openai/gpt-5.4-nano"),
+            catmatch_embed_model=os.getenv("CATMATCH_EMBED_MODEL", "openai/text-embedding-3-small"),
+            catmatch_llm_batch_size=int(os.getenv("CATMATCH_LLM_BATCH_SIZE", "15")),
         )
-

@@ -86,6 +86,39 @@ CREATE TABLE IF NOT EXISTS dictionary_mappings (
     FOREIGN KEY(target_connection_id) REFERENCES marketplace_connections(id)
 );
 
+CREATE TABLE IF NOT EXISTS category_mappings (
+    wb_id INTEGER PRIMARY KEY,
+    ozon_id INTEGER NOT NULL,
+    confidence REAL NOT NULL,
+    source TEXT NOT NULL,
+    wb_name TEXT NOT NULL,
+    ozon_name TEXT NOT NULL,
+    alternatives TEXT NOT NULL DEFAULT '[]',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS mapping_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    wb_id INTEGER NOT NULL,
+    ozon_id INTEGER NOT NULL,
+    confidence REAL NOT NULL,
+    source TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS manual_review_queue (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    wb_id INTEGER NOT NULL,
+    wb_name TEXT NOT NULL,
+    wb_path TEXT NOT NULL DEFAULT '',
+    candidates TEXT NOT NULL DEFAULT '[]',
+    reason TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'pending',
+    resolved_at TEXT,
+    created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS mappings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     source_connection_id INTEGER NOT NULL,
@@ -699,6 +732,159 @@ class Database:
         with self._connect() as connection:
             rows = connection.execute(query, params).fetchall()
             return [self._deserialize_transfer_log(self._row_to_dict(row) or {}) for row in rows]
+
+    def upsert_category_mapping(
+        self,
+        *,
+        wb_id: int,
+        ozon_id: int,
+        confidence: float,
+        source: str,
+        wb_name: str,
+        ozon_name: str,
+        alternatives: str,
+        now: str,
+    ) -> dict[str, Any]:
+        with self._connect() as connection:
+            existing = connection.execute(
+                "SELECT confidence FROM category_mappings WHERE wb_id = ?",
+                (wb_id,),
+            ).fetchone()
+            if existing is None or confidence >= existing["confidence"]:
+                connection.execute(
+                    """
+                    INSERT OR REPLACE INTO category_mappings
+                    (wb_id, ozon_id, confidence, source, wb_name, ozon_name, alternatives, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (wb_id, ozon_id, confidence, source, wb_name, ozon_name, alternatives, now, now),
+                )
+            connection.execute(
+                """
+                INSERT INTO mapping_history (wb_id, ozon_id, confidence, source, created_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (wb_id, ozon_id, confidence, source, now),
+            )
+            row = connection.execute(
+                "SELECT * FROM category_mappings WHERE wb_id = ?", (wb_id,)
+            ).fetchone()
+            return self._row_to_dict(row) or {}
+
+    def get_category_mapping(self, wb_id: int) -> dict[str, Any] | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM category_mappings WHERE wb_id = ?", (wb_id,)
+            ).fetchone()
+            return self._row_to_dict(row)
+
+    def list_category_mappings(
+        self, *, min_confidence: float | None = None
+    ) -> list[dict[str, Any]]:
+        query = "SELECT * FROM category_mappings"
+        params: list[Any] = []
+        if min_confidence is not None:
+            query += " WHERE confidence >= ?"
+            params.append(min_confidence)
+        query += " ORDER BY wb_name"
+        with self._connect() as connection:
+            rows = connection.execute(query, params).fetchall()
+            return [self._row_to_dict(row) or {} for row in rows]
+
+    def add_to_review_queue(
+        self,
+        *,
+        wb_id: int,
+        wb_name: str,
+        wb_path: str,
+        candidates: str,
+        reason: str,
+        now: str,
+    ) -> int:
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                INSERT INTO manual_review_queue
+                (wb_id, wb_name, wb_path, candidates, reason, status, created_at)
+                VALUES (?, ?, ?, ?, ?, 'pending', ?)
+                """,
+                (wb_id, wb_name, wb_path, candidates, reason, now),
+            )
+            return int(cursor.lastrowid)
+
+    def list_review_queue(self, *, status: str = "pending") -> list[dict[str, Any]]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM manual_review_queue WHERE status = ? ORDER BY created_at DESC",
+                (status,),
+            ).fetchall()
+            return [self._row_to_dict(row) or {} for row in rows]
+
+    def resolve_review_item(
+        self,
+        *,
+        item_id: int,
+        ozon_id: int,
+        ozon_name: str,
+        now: str,
+    ) -> dict[str, Any] | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM manual_review_queue WHERE id = ?", (item_id,)
+            ).fetchone()
+            if row is None:
+                return None
+            data = self._row_to_dict(row) or {}
+            connection.execute(
+                "UPDATE manual_review_queue SET status = 'resolved', resolved_at = ? WHERE id = ?",
+                (now, item_id),
+            )
+        self.upsert_category_mapping(
+            wb_id=data["wb_id"],
+            ozon_id=ozon_id,
+            confidence=100.0,
+            source="manual",
+            wb_name=data["wb_name"],
+            ozon_name=ozon_name,
+            alternatives="[]",
+            now=now,
+        )
+        return self._row_to_dict(
+            self._connect().execute(
+                "SELECT * FROM manual_review_queue WHERE id = ?", (item_id,)
+            ).fetchone()
+        )
+
+    def get_mapping_history(self, wb_id: int) -> list[dict[str, Any]]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM mapping_history WHERE wb_id = ? ORDER BY created_at DESC",
+                (wb_id,),
+            ).fetchall()
+            return [self._row_to_dict(row) or {} for row in rows]
+
+    def get_category_mapping_stats(self) -> dict[str, Any]:
+        with self._connect() as connection:
+            total = connection.execute("SELECT COUNT(*) as c FROM category_mappings").fetchone()["c"]
+            high = connection.execute(
+                "SELECT COUNT(*) as c FROM category_mappings WHERE confidence >= 90"
+            ).fetchone()["c"]
+            medium = connection.execute(
+                "SELECT COUNT(*) as c FROM category_mappings WHERE confidence >= 60 AND confidence < 90"
+            ).fetchone()["c"]
+            low = connection.execute(
+                "SELECT COUNT(*) as c FROM category_mappings WHERE confidence < 60"
+            ).fetchone()["c"]
+            pending = connection.execute(
+                "SELECT COUNT(*) as c FROM manual_review_queue WHERE status = 'pending'"
+            ).fetchone()["c"]
+            return {
+                "mapped": total,
+                "high_confidence": high,
+                "medium_confidence": medium,
+                "low_confidence": low,
+                "pending_review": pending,
+            }
 
     def save_dictionary_mapping(
         self,

@@ -5,6 +5,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.config import Settings
 from app.services.catalog import CatalogService
+from app.services.category_mapper import CategoryMapper
 from app.services.transfer import TransferService
 
 security = HTTPBearer(auto_error=False)
@@ -38,7 +39,12 @@ def get_transfer_service(container=Depends(get_container)) -> TransferService:
         catalog_service=catalog_service,
         client_factory=container.client_factory,
         mapping_service=container.mapping_service,
+        category_mapper=container.category_mapper,
     )
+
+
+def get_category_mapper(container=Depends(get_container)) -> CategoryMapper:
+    return container.category_mapper
 
 
 def get_current_user(

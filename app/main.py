@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api.routes import admin, auth, catalog, connections, health, mappings, oauth, public, transfers
+from app.api.routes import admin, auth, catalog, category_mapping, connections, health, mappings, oauth, public, transfers
 from app.config import Settings
 from app.services.container import ServiceContainer
 
@@ -35,6 +35,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(public.router, prefix="/api/v1")
     app.include_router(oauth.router, prefix="/api/v1")
     app.include_router(admin.router, prefix="/api/v1")
+    app.include_router(category_mapping.router, prefix="/api/v1")
 
     @app.middleware("http")
     async def disable_cache(request: Request, call_next):

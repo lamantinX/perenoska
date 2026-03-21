@@ -1696,39 +1696,39 @@ def test_preview_returns_grouped_category_issues(tmp_path):
     preview_data = preview_response.json()
     assert preview_data["ready_to_import"] is False
     assert preview_data["dictionary_issues"] == []
-    assert preview_data["category_issues"] == [
+    assert len(preview_data["category_issues"]) == 1
+    issue = preview_data["category_issues"][0]
+    assert issue["type"] == "category"
+    assert issue["source_key"] == "wb:10"
+    assert issue["source_label"] == "Upper wear"
+    assert issue["target_marketplace"] == "ozon"
+    assert issue["product_ids"] == ["1001"]
+    assert issue["products"] == [{"id": "1001", "title": "Аппарат для маникюра и педикюра"}]
+    assert issue["options"] == [
         {
-            "type": "category",
-            "source_key": "wb:10",
-            "source_label": "Upper wear",
-            "target_marketplace": "ozon",
-            "product_ids": ["1001"],
-            "products": [{"id": "1001", "title": "Аппарат для маникюра и педикюра"}],
-            "options": [
-                {
-                    "key": "ozon:701",
-                    "label": "Jeans",
-                    "path": "Jeans",
-                    "context": {
-                        "description_category_id": 701,
-                        "types": [{"id": 801, "name": "Jeans"}],
-                    },
-                },
-                {
-                    "key": "ozon:501",
-                    "label": "T-shirts",
-                    "path": "T-shirts",
-                    "context": {
-                        "description_category_id": 501,
-                        "types": [
-                            {"id": 601, "name": "T-shirt"},
-                            {"id": 602, "name": "Longsleeve"},
-                        ],
-                    },
-                },
-            ],
-        }
+            "key": "ozon:701",
+            "label": "Jeans",
+            "path": "Jeans",
+            "context": {
+                "description_category_id": 701,
+                "types": [{"id": 801, "name": "Jeans"}],
+            },
+        },
+        {
+            "key": "ozon:501",
+            "label": "T-shirts",
+            "path": "T-shirts",
+            "context": {
+                "description_category_id": 501,
+                "types": [
+                    {"id": 601, "name": "T-shirt"},
+                    {"id": 602, "name": "Longsleeve"},
+                ],
+            },
+        },
     ]
+    assert "suggestions" in issue
+    assert isinstance(issue["suggestions"], list)
     assert preview_data["items"][0]["payload"] == {
         "name": "Аппарат для маникюра и педикюра",
         "description": "Компактный аппарат для маникюра",
@@ -1960,30 +1960,30 @@ def test_preview_returns_wb_category_options_for_manual_mapping(tmp_path):
     assert preview_response.status_code == 200
     preview_data = preview_response.json()
     assert preview_data["ready_to_import"] is False
-    assert preview_data["category_issues"] == [
+    assert len(preview_data["category_issues"]) == 1
+    issue = preview_data["category_issues"][0]
+    assert issue["type"] == "category"
+    assert issue["source_key"] == "ozon:59968946"
+    assert issue["source_label"] == "Аппараты для маникюра и педикюра"
+    assert issue["target_marketplace"] == "wb"
+    assert issue["product_ids"] == ["2001"]
+    assert issue["products"] == [{"id": "2001", "title": "Аппарат для маникюра и педикюра"}]
+    assert issue["options"] == [
         {
-            "type": "category",
-            "source_key": "ozon:59968946",
-            "source_label": "Аппараты для маникюра и педикюра",
-            "target_marketplace": "wb",
-            "product_ids": ["2001"],
-            "products": [{"id": "2001", "title": "Аппарат для маникюра и педикюра"}],
-            "options": [
-                {
-                    "key": "wb:77",
-                    "label": "Hoodies",
-                    "path": "Hoodies",
-                    "context": {"subject_id": 77},
-                },
-                {
-                    "key": "wb:88",
-                    "label": "Tops",
-                    "path": "Tops",
-                    "context": {"subject_id": 88},
-                },
-            ],
-        }
+            "key": "wb:77",
+            "label": "Hoodies",
+            "path": "Hoodies",
+            "context": {"subject_id": 77},
+        },
+        {
+            "key": "wb:88",
+            "label": "Tops",
+            "path": "Tops",
+            "context": {"subject_id": 88},
+        },
     ]
+    assert "suggestions" in issue
+    assert isinstance(issue["suggestions"], list)
     assert preview_data["items"][0]["payload"] == {
         "subjectID": 0,
         "variants": [
