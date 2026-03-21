@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from app.config import Settings
 from app.services.catalog import CatalogService
 from app.services.transfer import TransferService
 
@@ -11,6 +12,10 @@ security = HTTPBearer(auto_error=False)
 
 def get_container(request: Request):
     return request.app.state.container
+
+
+def get_config(container=Depends(get_container)) -> Settings:
+    return container.settings
 
 
 def get_auth_service(container=Depends(get_container)):
@@ -43,4 +48,13 @@ def get_current_user(
     if credentials is None or credentials.scheme.lower() != "bearer":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Нужен Bearer token.")
     return auth_service.get_current_user(credentials.credentials)
+
+
+def get_admin_user(
+    current_user=Depends(get_current_user),
+    config: Settings = Depends(get_config),
+):
+    if current_user["email"].lower() not in config.admin_emails:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    return current_user
 

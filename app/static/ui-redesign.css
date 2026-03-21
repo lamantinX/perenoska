@@ -1,0 +1,540 @@
+:root {
+  --wb: #c926ff;
+  --wb-soft: rgba(201, 38, 255, 0.12);
+  --ozon: #0078ff;
+  --ozon-soft: rgba(0, 120, 255, 0.12);
+  --ink-strong: #121729;
+  --ink-soft: #5d6586;
+  --surface-strong: rgba(255, 255, 255, 0.92);
+  --surface-game: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(244, 247, 255, 0.94));
+  --line-strong: rgba(73, 89, 146, 0.12);
+  --shadow-game: 0 18px 44px rgba(28, 41, 86, 0.12);
+}
+
+body {
+  background:
+    radial-gradient(circle at top left, rgba(201, 38, 255, 0.16), transparent 24%),
+    radial-gradient(circle at top right, rgba(0, 120, 255, 0.16), transparent 26%),
+    linear-gradient(180deg, #f6f7ff 0%, #eef3ff 52%, #f7f9ff 100%);
+  color: var(--ink-strong);
+  font-family: "Segoe UI", Bahnschrift, sans-serif;
+}
+
+.page-glow-left {
+  background: rgba(201, 38, 255, 0.18);
+}
+
+.page-glow-right {
+  background: rgba(0, 120, 255, 0.16);
+}
+
+.app-shell {
+  width: min(1440px, calc(100% - 40px));
+  padding-top: 28px;
+}
+
+.hero.game-hero,
+.panel,
+.form-card,
+.credential-card,
+.product-card,
+.preview-card,
+.job-card {
+  background: var(--surface-game);
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-game);
+}
+
+.game-hero {
+  padding: 28px 30px;
+}
+
+.topbar,
+.topbar-actions,
+.hero-grid,
+.workspace-layout,
+.dashboard-band,
+.summary-stats,
+.summary-rail,
+.mission-step,
+.action-card,
+.upgrade-head {
+  display: flex;
+}
+
+.topbar,
+.upgrade-head {
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.brand-caption,
+.mission-progress-label,
+.dashboard-hero-text,
+.upgrade-copy,
+.mission-step-copy small,
+.summary-stat span {
+  color: var(--ink-soft);
+}
+
+.brand-caption {
+  font-size: 0.92rem;
+}
+
+.topbar-actions {
+  align-items: center;
+  gap: 16px;
+}
+
+.mission-progress {
+  min-width: 220px;
+}
+
+.mission-progress-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.84rem;
+}
+
+.mission-progress-bar {
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(18, 23, 41, 0.08);
+  overflow: hidden;
+}
+
+.mission-progress-fill {
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--wb) 0%, var(--ozon) 100%);
+  transition: width 180ms ease;
+}
+
+.upgrade-button {
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 20px;
+  cursor: pointer;
+  color: #fff;
+  background: linear-gradient(135deg, var(--wb) 0%, var(--ozon) 100%);
+  box-shadow: 0 14px 28px rgba(101, 68, 255, 0.2);
+}
+
+.hero-grid {
+  margin-top: 28px;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.hero-grid > :first-child {
+  flex: 1 1 auto;
+}
+
+.hero h1 {
+  max-width: 12ch;
+  color: var(--ink-strong);
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.pulse-button {
+  animation: pulseGlow 2.2s ease-in-out infinite;
+}
+
+.game-status-card {
+  min-width: 260px;
+  min-height: 148px;
+  font-size: 1.05rem;
+  color: var(--ink-strong);
+  background:
+    radial-gradient(circle at top left, rgba(201, 38, 255, 0.16), transparent 48%),
+    radial-gradient(circle at bottom right, rgba(0, 120, 255, 0.18), transparent 48%),
+    rgba(255, 255, 255, 0.82);
+}
+
+.auth-panel {
+  margin-top: 24px;
+}
+
+.workspace-layout {
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.mission-rail {
+  position: sticky;
+  top: 18px;
+  width: 280px;
+  flex: 0 0 280px;
+}
+
+.workspace-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.dashboard-band {
+  align-items: stretch;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.dashboard-hero {
+  flex: 1 1 auto;
+}
+
+.summary-rail {
+  flex-direction: column;
+  gap: 20px;
+  width: 320px;
+  flex: 0 0 320px;
+}
+
+.summary-panel,
+.upgrade-panel {
+  height: fit-content;
+}
+
+.summary-stats {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.summary-stat {
+  flex: 1 1 calc(50% - 12px);
+  min-width: 120px;
+  padding: 16px;
+  border-radius: 20px;
+  background: rgba(246, 248, 255, 0.92);
+  border: 1px solid rgba(73, 89, 146, 0.08);
+}
+
+.summary-stat strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 1.5rem;
+}
+
+.upgrade-list {
+  margin: 14px 0 18px;
+  padding-left: 18px;
+  color: var(--ink-soft);
+}
+
+.dashboard-action-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 24px;
+}
+
+.action-card {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid transparent;
+  border-radius: 22px;
+  cursor: pointer;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.76);
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.action-card:hover,
+.mission-step:hover {
+  transform: translateY(-2px);
+}
+
+.action-card-magenta {
+  border-color: rgba(201, 38, 255, 0.18);
+  box-shadow: 0 14px 28px rgba(201, 38, 255, 0.08);
+}
+
+.action-card-blue {
+  border-color: rgba(0, 120, 255, 0.18);
+  box-shadow: 0 14px 28px rgba(0, 120, 255, 0.08);
+}
+
+.action-card-mixed {
+  border-color: rgba(101, 68, 255, 0.18);
+  box-shadow: 0 14px 28px rgba(101, 68, 255, 0.08);
+}
+
+.action-card-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  font-size: 1.2rem;
+  color: #fff;
+  background: linear-gradient(135deg, var(--wb) 0%, var(--ozon) 100%);
+}
+
+.mission-steps {
+  display: grid;
+  gap: 12px;
+}
+
+.mission-step {
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px;
+  border: 1px solid rgba(73, 89, 146, 0.1);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.74);
+  cursor: pointer;
+  text-align: left;
+}
+
+.mission-step-current {
+  border-color: rgba(201, 38, 255, 0.22);
+  background:
+    linear-gradient(135deg, rgba(201, 38, 255, 0.08) 0%, rgba(0, 120, 255, 0.08) 100%),
+    rgba(255, 255, 255, 0.86);
+}
+
+.mission-step-complete {
+  border-color: rgba(39, 183, 117, 0.2);
+}
+
+.mission-step-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, var(--wb) 0%, var(--ozon) 100%);
+}
+
+.mission-step-copy {
+  display: grid;
+  gap: 3px;
+}
+
+.mission-tip-card {
+  margin-top: 18px;
+  padding: 16px 18px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, var(--wb-soft) 0%, var(--ozon-soft) 100%);
+}
+
+.mission-tip-title {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.compact-head {
+  margin-bottom: 14px;
+}
+
+.marketplace-cards {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.credential-card,
+.product-card,
+.preview-card,
+.job-card,
+.detail-card {
+  background: var(--surface-strong);
+}
+
+.credential-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.credential-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(90deg, var(--wb) 0%, var(--ozon) 100%);
+}
+
+.masked-value {
+  display: block;
+  min-height: 18px;
+  margin-top: 8px;
+  color: var(--ink-soft);
+  font-size: 0.86rem;
+}
+
+.selection-bar,
+.progress-panel,
+.empty-state {
+  background: rgba(247, 249, 255, 0.86);
+}
+
+.preview-summary-board {
+  margin-bottom: 16px;
+}
+
+.preview-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.preview-summary-card {
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(73, 89, 146, 0.08);
+}
+
+.preview-summary-card strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 1.3rem;
+}
+
+.product-grid {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+.product-card.selected {
+  border-color: rgba(0, 120, 255, 0.28);
+  box-shadow: 0 16px 34px rgba(0, 120, 255, 0.12);
+}
+
+.product-card.expanded {
+  border-color: rgba(201, 38, 255, 0.22);
+}
+
+.product-image {
+  background:
+    radial-gradient(circle at top left, rgba(201, 38, 255, 0.1), transparent 46%),
+    radial-gradient(circle at bottom right, rgba(0, 120, 255, 0.12), transparent 46%),
+    linear-gradient(135deg, #f4f1ff, #eef5ff);
+}
+
+.jobs-list,
+.preview-list {
+  gap: 16px;
+}
+
+.job-card,
+.preview-card {
+  border-radius: 22px;
+}
+
+.preview-card pre,
+.job-card pre,
+.json-block {
+  background: #f7f9ff;
+  color: #334;
+}
+
+.badge-success {
+  background: rgba(39, 183, 117, 0.12);
+  color: #127d4a;
+}
+
+.badge-warning {
+  background: rgba(255, 174, 0, 0.14);
+  color: #a26700;
+}
+
+.badge-danger {
+  background: rgba(255, 88, 88, 0.12);
+  color: #af2b2b;
+}
+
+.badge-neutral {
+  background: rgba(73, 89, 146, 0.1);
+  color: #5b6488;
+}
+
+.primary-button {
+  background: linear-gradient(135deg, var(--wb) 0%, #8b3cff 48%, var(--ozon) 100%);
+}
+
+.secondary-button {
+  background: linear-gradient(135deg, rgba(201, 38, 255, 0.14) 0%, rgba(0, 120, 255, 0.14) 100%);
+  color: var(--ink-strong);
+}
+
+.ghost-button {
+  background: rgba(255, 255, 255, 0.74);
+  color: var(--ink-strong);
+}
+
+.section-anchor {
+  scroll-margin-top: 24px;
+}
+
+@keyframes pulseGlow {
+  0%,
+  100% {
+    box-shadow: 0 14px 28px rgba(101, 68, 255, 0.2);
+  }
+  50% {
+    box-shadow: 0 20px 38px rgba(101, 68, 255, 0.3);
+  }
+}
+
+@media (max-width: 1240px) {
+  .workspace-layout,
+  .dashboard-band {
+    flex-direction: column;
+  }
+
+  .mission-rail,
+  .summary-rail {
+    position: static;
+    width: 100%;
+    flex: 1 1 auto;
+  }
+
+  .marketplace-cards,
+  .dashboard-action-grid,
+  .preview-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 920px) {
+  .app-shell {
+    width: min(100%, calc(100% - 20px));
+  }
+
+  .hero-grid,
+  .topbar,
+  .topbar-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .game-status-card {
+    min-width: 0;
+  }
+
+  .marketplace-cards,
+  .dashboard-action-grid,
+  .preview-summary-grid,
+  .summary-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-stat {
+    flex-basis: 100%;
+  }
+}

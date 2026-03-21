@@ -105,6 +105,20 @@ CREATE TABLE IF NOT EXISTS mappings (
     FOREIGN KEY(source_connection_id) REFERENCES marketplace_connections(id),
     FOREIGN KEY(target_connection_id) REFERENCES marketplace_connections(id)
 );
+
+CREATE TABLE IF NOT EXISTS payment_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    plan_name TEXT NOT NULL,
+    amount REAL NOT NULL,
+    currency TEXT DEFAULT 'RUB',
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS system_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 """
 
 
@@ -116,6 +130,293 @@ class Database:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as connection:
             connection.executescript(SCHEMA_SQL)
+            self._migrate(connection)
+            self._seed_settings(connection)
+
+    @staticmethod
+    def _migrate(connection: sqlite3.Connection) -> None:
+        """Add columns to existing tables that may pre-date the current schema."""
+        existing_cols = {
+            row[1]
+            for row in connection.execute("PRAGMA table_info(users)").fetchall()
+        }
+        additions = [
+            ("phone", "TEXT"),
+            ("is_blocked", "INTEGER DEFAULT 0"),
+            ("plan_expires_at", "TEXT"),
+            ("transfer_limit", "INTEGER"),
+        ]
+        for col_name, col_def in additions:
+            if col_name not in existing_cols:
+                connection.execute(
+                    f"ALTER TABLE users ADD COLUMN {col_name} {col_def}"
+                )
+
+    @staticmethod
+    def _seed_settings(connection: sqlite3.Connection) -> None:
+        defaults = [
+            ("registration_enabled", "true"),
+            ("banner_text", ""),
+            ("default_transfer_limit", "100"),
+        ]
+        for key, value in defaults:
+            connection.execute(
+                "INSERT OR IGNORE INTO system_settings (key, value) VALUES (?, ?)",
+                (key, value),
+            )
+
+    def get_setting(self, key: str) -> str | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT value FROM system_settings WHERE key = ?", (key,)
+            ).fetchone()
+            return str(row[0]) if row else None
+
+    def get_all_settings(self) -> dict[str, str]:
+        with self._connect() as connection:
+            rows = connection.execute("SELECT key, value FROM system_settings").fetchall()
+            return {str(row[0]): str(row[1]) for row in rows}
+
+    def set_setting(self, key: str, value: str) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                "INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)",
+                (key, value),
+            )
+
+    # ------------------------------------------------------------------
+    # Admin-specific DB methods
+    # ------------------------------------------------------------------
+
+    def admin_list_users(self, *, search: str | None = None) -> list[dict[str, Any]]:
+        query = "SELECT * FROM users"
+        params: list[Any] = []
+        if search:
+            query += " WHERE (email LIKE ? OR phone LIKE ?)"
+            pattern = f"%{search}%"
+            params = [pattern, pattern]
+        query += " ORDER BY id"
+        with self._connect() as connection:
+            rows = connection.execute(query, params).fetchall()
+            return [self._row_to_dict(row) or {} for row in rows]
+
+    def admin_get_user(self, user_id: int) -> dict[str, Any] | None:
+        with self._connect() as connection:
+            row = connection.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+            return self._row_to_dict(row)
+
+    def admin_update_user(
+        self,
+        *,
+        user_id: int,
+        phone: str | None = None,
+        is_blocked: int | None = None,
+        plan_expires_at: str | None = None,
+        transfer_limit: int | None = None,
+        _unset_transfer_limit: bool = False,
+        _unset_plan_expires_at: bool = False,
+    ) -> dict[str, Any] | None:
+        with self._connect() as connection:
+            current = connection.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+            if current is None:
+                return None
+            cur = self._row_to_dict(current) or {}
+            new_phone = phone if phone is not None else cur.get("phone")
+            new_is_blocked = is_blocked if is_blocked is not None else cur.get("is_blocked", 0)
+            new_plan_expires_at = (
+                None if _unset_plan_expires_at
+                else (plan_expires_at if plan_expires_at is not None else cur.get("plan_expires_at"))
+            )
+            new_transfer_limit = (
+                None if _unset_transfer_limit
+                else (transfer_limit if transfer_limit is not None else cur.get("transfer_limit"))
+            )
+            connection.execute(
+                """
+                UPDATE users
+                SET phone = ?,
+                    is_blocked = ?,
+                    plan_expires_at = ?,
+                    transfer_limit = ?
+                WHERE id = ?
+                """,
+                (new_phone, new_is_blocked, new_plan_expires_at, new_transfer_limit, user_id),
+            )
+            row = connection.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+            return self._row_to_dict(row)
+
+    def admin_delete_user(self, user_id: int) -> bool:
+        with self._connect() as connection:
+            cursor = connection.execute("DELETE FROM users WHERE id = ?", (user_id,))
+            return cursor.rowcount > 0
+
+    def admin_count_transfers_for_user(self, user_id: int) -> int:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT COUNT(*) FROM transfer_jobs WHERE user_id = ?", (user_id,)
+            ).fetchone()
+            return int(row[0]) if row else 0
+
+    def admin_list_connections_for_user(self, user_id: int) -> list[str]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT marketplace FROM marketplace_connections WHERE user_id = ? ORDER BY marketplace",
+                (user_id,),
+            ).fetchall()
+            return [str(row[0]) for row in rows]
+
+    def admin_list_transfers(
+        self,
+        *,
+        user_id: int | None = None,
+        status: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
+        query = """
+            SELECT tj.*, u.email AS user_email,
+                   (SELECT tl.base_token FROM transfer_logs tl
+                    WHERE tl.job_id = tj.id ORDER BY tl.sequence_no LIMIT 1) AS base_token
+            FROM transfer_jobs tj
+            JOIN users u ON u.id = tj.user_id
+            WHERE 1=1
+        """
+        params: list[Any] = []
+        if user_id is not None:
+            query += " AND tj.user_id = ?"
+            params.append(user_id)
+        if status is not None:
+            query += " AND tj.status = ?"
+            params.append(status)
+        query += " ORDER BY tj.id DESC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+        with self._connect() as connection:
+            rows = connection.execute(query, params).fetchall()
+            return [self._row_to_dict(row) or {} for row in rows]
+
+    def admin_cancel_transfer(self, job_id: int, updated_at: str) -> bool:
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE transfer_jobs
+                SET status = 'failed',
+                    error_message = 'Cancelled by admin',
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (updated_at, job_id),
+            )
+            return cursor.rowcount > 0
+
+    def admin_get_stats(self) -> dict[str, Any]:
+        with self._connect() as connection:
+            total_users = int(
+                (connection.execute("SELECT COUNT(*) FROM users").fetchone() or (0,))[0]
+            )
+            total_transfers = int(
+                (connection.execute("SELECT COUNT(*) FROM transfer_jobs").fetchone() or (0,))[0]
+            )
+            today_transfers = int(
+                (
+                    connection.execute(
+                        "SELECT COUNT(*) FROM transfer_jobs WHERE date(created_at) = date('now')"
+                    ).fetchone()
+                    or (0,)
+                )[0]
+            )
+            successful_transfers = int(
+                (
+                    connection.execute(
+                        "SELECT COUNT(*) FROM transfer_jobs WHERE status = 'completed'"
+                    ).fetchone()
+                    or (0,)
+                )[0]
+            )
+            failed_transfers = int(
+                (
+                    connection.execute(
+                        "SELECT COUNT(*) FROM transfer_jobs WHERE status = 'failed'"
+                    ).fetchone()
+                    or (0,)
+                )[0]
+            )
+            top_users_rows = connection.execute(
+                """
+                SELECT u.email, COUNT(tj.id) AS cnt
+                FROM transfer_jobs tj
+                JOIN users u ON u.id = tj.user_id
+                GROUP BY tj.user_id
+                ORDER BY cnt DESC
+                LIMIT 10
+                """
+            ).fetchall()
+            top_users = [{"email": str(row[0]), "count": int(row[1])} for row in top_users_rows]
+            transfers_by_day_rows = connection.execute(
+                """
+                SELECT
+                    date(created_at) AS day,
+                    COUNT(*) AS total,
+                    SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS errors
+                FROM transfer_jobs
+                WHERE created_at >= date('now', '-30 days')
+                GROUP BY day
+                ORDER BY day
+                """
+            ).fetchall()
+            transfers_by_day = [
+                {"date": str(row[0]), "count": int(row[1]), "errors": int(row[2])}
+                for row in transfers_by_day_rows
+            ]
+            return {
+                "total_users": total_users,
+                "total_transfers": total_transfers,
+                "today_transfers": today_transfers,
+                "successful_transfers": successful_transfers,
+                "failed_transfers": failed_transfers,
+                "top_users": top_users,
+                "transfers_by_day": transfers_by_day,
+            }
+
+    def admin_list_payment_history(self, user_id: int) -> list[dict[str, Any]]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM payment_history WHERE user_id = ? ORDER BY id DESC",
+                (user_id,),
+            ).fetchall()
+            return [self._row_to_dict(row) or {} for row in rows]
+
+    def admin_add_payment(
+        self,
+        *,
+        user_id: int,
+        plan_name: str,
+        amount: float,
+        currency: str,
+        created_at: str,
+    ) -> dict[str, Any]:
+        with self._connect() as connection:
+            cursor = connection.execute(
+                "INSERT INTO payment_history (user_id, plan_name, amount, currency, created_at) VALUES (?, ?, ?, ?, ?)",
+                (user_id, plan_name, amount, currency, created_at),
+            )
+            row = connection.execute(
+                "SELECT * FROM payment_history WHERE id = ?", (cursor.lastrowid,)
+            ).fetchone()
+            return self._row_to_dict(row) or {}
+
+    def admin_list_job_logs(self, job_id: int) -> list[dict[str, Any]]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT id, token, base_token, sequence_no, event_type, operation,
+                       request_url, status_code, duration_ms, error_text
+                FROM transfer_logs
+                WHERE job_id = ?
+                ORDER BY sequence_no
+                """,
+                (job_id,),
+            ).fetchall()
+            return [self._row_to_dict(row) or {} for row in rows]
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.path)

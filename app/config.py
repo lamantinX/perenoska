@@ -15,10 +15,15 @@ class Settings:
     ozon_base_url: str
     http_timeout_seconds: float
     yandex_market_base_url: str = "https://api.partner.market.yandex.ru"
+    admin_emails: tuple[str, ...] = ()
 
     @classmethod
     def from_env(cls) -> "Settings":
         database_path = Path(os.getenv("APP_DATABASE_PATH", "data/perenositsa.db"))
+        raw_admin_emails = os.getenv("ADMIN_EMAILS", "")
+        admin_emails = tuple(
+            e.strip().lower() for e in raw_admin_emails.split(",") if e.strip()
+        )
         return cls(
             app_name=os.getenv("APP_NAME", "Perenositsa"),
             secret_key=os.getenv("APP_SECRET_KEY", "unsafe-local-development-secret"),
@@ -31,5 +36,6 @@ class Settings:
                 "https://api.partner.market.yandex.ru",
             ).rstrip("/"),
             http_timeout_seconds=float(os.getenv("HTTP_TIMEOUT_SECONDS", "30")),
+            admin_emails=admin_emails,
         )
 

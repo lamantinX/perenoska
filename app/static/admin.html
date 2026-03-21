@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Perenoska Admin</title>
+  <link rel="stylesheet" href="/static/app.css?v=12" />
+  <link rel="stylesheet" href="/static/ui-redesign.css?v=1" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    html, body { height: 100%; overflow: hidden; }
+
+    :root { --sidebar-w: 240px; }
+
+    /* ── Login ── */
+    #loginScreen {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; position: relative; z-index: 1;
+    }
+
+    /* ── App shell ── */
+    #appShell { display: none; height: 100vh; overflow: hidden; position: relative; z-index: 1; }
+
+    /* ── Sidebar ── */
+    #sidebar {
+      position: fixed; top: 0; left: 0; bottom: 0;
+      width: var(--sidebar-w);
+      background: var(--surface-strong, rgba(255,255,255,0.96));
+      border-right: 1px solid var(--line-strong);
+      display: flex; flex-direction: column; z-index: 50;
+    }
+    .sidebar-brand {
+      padding: 1.25rem 1.25rem 1rem;
+      border-bottom: 1px solid var(--line-strong);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .sidebar-brand-icon {
+      width: 36px; height: 36px; border-radius: 12px;
+      background: linear-gradient(135deg, var(--wb), var(--ozon));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; color: #fff; flex-shrink: 0;
+    }
+    .sidebar-brand-label { font-size: 0.9rem; font-weight: 700; color: var(--ink-strong); line-height: 1.2; }
+    .sidebar-brand-sub   { font-size: 0.68rem; color: var(--ink-soft); }
+
+    .sidebar-nav { flex: 1; padding: 0.75rem; overflow-y: auto; }
+    .nav-section-lbl {
+      font-size: 0.6rem; font-weight: 600; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--ink-soft);
+      padding: 0.6rem 0.5rem 0.3rem;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 0.55rem 0.75rem; border-radius: 12px;
+      color: var(--ink-soft); cursor: pointer;
+      font-size: 0.875rem; font-weight: 500;
+      border: none; background: none; width: 100%; text-align: left;
+      margin-bottom: 2px; transition: background 0.14s, color 0.14s;
+    }
+    .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .nav-item:hover { background: rgba(201,38,255,0.06); color: var(--ink-strong); }
+    .nav-item.active {
+      background: linear-gradient(135deg, rgba(201,38,255,0.1), rgba(0,120,255,0.1));
+      color: var(--wb);
+    }
+    .sidebar-footer { padding: 1rem; border-top: 1px solid var(--line-strong); }
+    .sidebar-user { display: flex; align-items: center; gap: 10px; margin-bottom: 0.75rem; }
+    .sidebar-avatar {
+      width: 30px; height: 30px;
+      background: linear-gradient(135deg, var(--wb), var(--ozon));
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 12px; font-weight: 700; flex-shrink: 0;
+    }
+    .sidebar-email { font-size: 0.73rem; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ── Main content ── */
+    #mainContent { margin-left: var(--sidebar-w); height: 100vh; overflow-y: auto; display: flex; flex-direction: column; }
+
+    /* ── Banner ── */
+    #banner {
+      background: var(--warn-soft); border-bottom: 1px solid rgba(139,91,22,0.18);
+      color: var(--warn); padding: 0.6rem 2rem;
+      font-size: 0.8rem; display: none; align-items: center; gap: 8px;
+    }
+
+    /* ── Page header ── */
+    .page-header { padding: 1.75rem 2rem 0; }
+    .page-header h1 { margin: 0; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.03em; color: var(--ink-strong); }
+
+    /* ── Sections ── */
+    section { display: none; padding: 1.5rem 2rem 2.5rem; }
+    section.active { display: block; }
+
+    /* ── Stat row ── */
+    .stat-row { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .stat-row .summary-stat { flex: 1 1 160px; }
+
+    /* ── Chart ── */
+    .chart-wrap { position: relative; height: 200px; margin-top: 1rem; }
+
+    /* ── Toolbar bar ── */
+    .toolbar-bar {
+      padding: 0.75rem 1.25rem;
+      border-bottom: 1px solid var(--line-strong);
+      display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+    }
+    .toolbar { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+
+    /* ── Tables ── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      background: rgba(246,247,255,0.7); padding: 0.6rem 1rem; text-align: left;
+      font-size: 0.68rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase;
+      color: var(--ink-soft); border-bottom: 1px solid var(--line-strong); white-space: nowrap;
+    }
+    tbody td {
+      padding: 0.7rem 1rem; border-bottom: 1px solid rgba(73,89,146,0.07);
+      font-size: 0.82rem; color: var(--ink-strong); vertical-align: middle;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr { transition: background 0.1s; }
+    tbody tr:hover { background: rgba(201,38,255,0.03); }
+    .td-muted { color: var(--ink-soft); font-size: 0.75rem; }
+    .td-truncate { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .td-mono { font-family: 'Courier New', monospace; font-size: 0.74rem; }
+    .td-danger { color: var(--danger); }
+
+    /* ── Admin inputs (compact) ── */
+    .adm-input {
+      background: rgba(246,247,255,0.8); border: 1px solid var(--line-strong);
+      border-radius: 10px; color: var(--ink-strong); font-family: inherit;
+      font-size: 0.82rem; padding: 0.48rem 0.75rem;
+      transition: border-color 0.14s; outline: none;
+    }
+    .adm-input:focus { border-color: var(--wb); box-shadow: 0 0 0 3px rgba(201,38,255,0.1); }
+    .adm-input::placeholder { color: var(--ink-soft); opacity: 0.7; }
+
+    /* ── Compact buttons ── */
+    .btn-sm { padding: 0.38rem 0.85rem !important; font-size: 0.8rem !important; }
+    .icon-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px;
+      background: none; border: 1px solid transparent; border-radius: 8px;
+      color: var(--ink-soft); cursor: pointer; transition: all 0.14s;
+    }
+    .icon-btn:hover { background: rgba(201,38,255,0.08); border-color: var(--line-strong); color: var(--ink-strong); }
+    .icon-btn svg { width: 14px; height: 14px; }
+    .icon-btn-danger:hover { background: var(--danger-soft); color: var(--danger); }
+
+    /* ── Toggle ── */
+    .toggle-wrap {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.9rem 0; border-bottom: 1px solid var(--line-strong);
+    }
+    .toggle-wrap:last-of-type { border-bottom: none; }
+    .toggle-info > label { font-size: 0.875rem; font-weight: 500; display: block; color: var(--ink-strong); }
+    .toggle-info small  { font-size: 0.73rem; color: var(--ink-soft); }
+    .toggle { position: relative; width: 40px; height: 22px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+      position: absolute; inset: 0; background: rgba(73,89,146,0.2);
+      border-radius: 11px; cursor: pointer; transition: background 0.2s;
+    }
+    .toggle-slider::before {
+      content:''; position: absolute; width: 16px; height: 16px;
+      left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: transform 0.2s;
+    }
+    .toggle input:checked + .toggle-slider { background: linear-gradient(135deg, var(--wb), var(--ozon)); }
+    .toggle input:checked + .toggle-slider::before { transform: translateX(18px); }
+
+    /* ── Pagination ── */
+    .pagination {
+      display: flex; align-items: center; gap: 0.3rem;
+      padding: 0.75rem 1rem; border-top: 1px solid var(--line-strong); justify-content: flex-end;
+    }
+
+    /* ── Modal overlay ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(18,23,41,0.38); backdrop-filter: blur(6px);
+      z-index: 200; align-items: center; justify-content: center; padding: 1rem;
+    }
+    .modal-overlay.open { display: flex; }
+    .adm-modal { width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; }
+    .adm-modal-wide { max-width: 860px; }
+    .modal-header {
+      display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1.5rem;
+    }
+    .modal-header h3 { font-size: 1rem; font-weight: 700; margin: 0; color: var(--ink-strong); }
+    .modal-header > div > p { font-size: 0.75rem; color: var(--ink-soft); margin: 0.2rem 0 0; }
+    .modal-close {
+      background: none; border: none; color: var(--ink-soft); cursor: pointer;
+      padding: 0.2rem; border-radius: 6px; transition: color 0.14s;
+    }
+    .modal-close:hover { color: var(--ink-strong); }
+    .modal-section-label {
+      font-size: 0.68rem; font-weight: 600; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--ink-soft); margin: 1.25rem 0 0.75rem;
+    }
+    .modal-actions {
+      display: flex; gap: 0.5rem; justify-content: flex-end;
+      margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--line-strong);
+    }
+    .modal-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .form-group { margin-bottom: 1rem; }
+    .form-group:last-child { margin-bottom: 0; }
+    .form-group > label { display: block; font-size: 0.73rem; font-weight: 500; color: var(--ink-soft); margin-bottom: 0.35rem; }
+    .form-hint { font-size: 0.69rem; color: var(--ink-soft); margin-top: 0.25rem; }
+    .save-row { display: flex; align-items: center; gap: 1rem; margin-top: 1.25rem; }
+    .save-ok { font-size: 0.8rem; color: var(--accent); display: none; align-items: center; gap: 5px; }
+
+    /* ── Direction ── */
+    .direction { display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; font-weight: 500; }
+    .mp-wb   { color: var(--wb); }
+    .mp-ozon { color: var(--ozon); }
+    .direction-arrow { color: var(--ink-soft); }
+
+    /* ── Logs ── */
+    .logs-meta { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .logs-meta-item { font-size: 0.75rem; color: var(--ink-soft); }
+    .logs-meta-item strong { color: var(--ink-strong); }
+
+    /* ── Search ── */
+    .search-wrap { position: relative; }
+    .search-wrap svg { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); width: 13px; height: 13px; color: var(--ink-soft); pointer-events: none; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed; bottom: 1.5rem; right: 1.5rem;
+      border-radius: 16px; padding: 0.75rem 1rem; font-size: 0.82rem;
+      z-index: 999; display: none; align-items: center; gap: 8px; min-width: 220px;
+      box-shadow: 0 16px 40px rgba(28,41,86,0.15);
+    }
+    #toast.show { display: flex; }
+    #toast.toast-ok  { background: var(--accent-soft); color: var(--accent); border: 1px solid rgba(30,90,79,0.2); }
+    #toast.toast-err { background: var(--danger-soft); color: var(--danger); border: 1px solid rgba(140,59,47,0.2); }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      :root { --sidebar-w: 0px; }
+      #sidebar { transform: translateX(-240px); width: 240px; }
+      #mainContent { margin-left: 0; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-glow page-glow-left"></div>
+<div class="page-glow page-glow-right"></div>
+
+<!-- ════════ LOGIN ════════ -->
+<div id="loginScreen">
+  <div class="form-card" style="width:360px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:1.5rem">
+      <div style="width:42px;height:42px;border-radius:14px;background:linear-gradient(135deg,var(--wb),var(--ozon));display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;flex-shrink:0">⚡</div>
+      <div>
+        <div style="font-size:1rem;font-weight:700;color:var(--ink-strong);line-height:1.2">Perenoska</div>
+        <div style="font-size:0.72rem;color:var(--ink-soft)">Admin Panel</div>
+      </div>
+    </div>
+    <p class="panel-kicker">Доступ</p>
+    <h3 style="margin:0 0 1.25rem;font-size:1.2rem;font-weight:700;color:var(--ink-strong)">Вход в систему</h3>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="loginEmail" placeholder="admin@example.com" class="adm-input" style="width:100%" />
+    </div>
+    <div class="form-group">
+      <label>Пароль</label>
+      <input type="password" id="loginPassword" placeholder="••••••••" class="adm-input" style="width:100%"
+        onkeydown="if(event.key==='Enter') doLogin()" />
+    </div>
+    <button class="primary-button" style="width:100%;margin-top:0.25rem;justify-content:center" onclick="doLogin()">Войти</button>
+    <div id="loginError" style="display:none;margin-top:0.75rem;padding:0.6rem 0.75rem;border-radius:10px;background:var(--danger-soft);color:var(--danger);font-size:0.82rem;border:1px solid rgba(140,59,47,0.15)"></div>
+  </div>
+</div>
+
+<!-- ════════ APP SHELL ════════ -->
+<div id="appShell">
+
+  <!-- Sidebar -->
+  <nav id="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-brand-icon">⚡</div>
+      <div>
+        <div class="sidebar-brand-label">Perenoska</div>
+        <div class="sidebar-brand-sub">Admin</div>
+      </div>
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-section-lbl">Меню</div>
+      <button class="nav-item active" onclick="showSection('dashboard',this)" data-section="dashboard">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="1" y="1" width="6" height="6" rx="1.5"/><rect x="9" y="1" width="6" height="6" rx="1.5"/>
+          <rect x="1" y="9" width="6" height="6" rx="1.5"/><rect x="9" y="9" width="6" height="6" rx="1.5"/>
+        </svg>
+        Dashboard
+      </button>
+      <button class="nav-item" onclick="showSection('users',this)" data-section="users">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="8" cy="5" r="3"/><path d="M2 13c0-3.314 2.686-5 6-5s6 1.686 6 5"/>
+        </svg>
+        Пользователи
+      </button>
+      <button class="nav-item" onclick="showSection('transfers',this)" data-section="transfers">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M2 5h12M10 2l4 3-4 3M14 11H2M6 8l-4 3 4 3"/>
+        </svg>
+        Трансферы
+      </button>
+      <button class="nav-item" onclick="showSection('settings',this)" data-section="settings">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="8" cy="8" r="2.5"/>
+          <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41"/>
+        </svg>
+        Настройки
+      </button>
+    </div>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-avatar" id="sidebarAvatarLetter">A</div>
+        <div class="sidebar-email" id="sidebarEmail">—</div>
+      </div>
+      <button class="ghost-button" style="width:100%;display:flex;align-items:center;gap:8px;justify-content:center;font-size:0.82rem;padding:0.5rem 0.75rem" onclick="doLogout()">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M6 2H2v12h4M11 5l3 3-3 3M14 8H6"/>
+        </svg>
+        Выйти
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main content -->
+  <div id="mainContent">
+
+    <!-- Banner -->
+    <div id="banner">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="8" cy="8" r="7"/><path d="M8 5v3M8 10.5v.5"/>
+      </svg>
+      <span id="bannerText"></span>
+    </div>
+
+    <!-- ── Dashboard ── -->
+    <section id="dashboard" class="active">
+      <div class="page-header">
+        <p class="panel-kicker">Обзор</p>
+        <h1>Dashboard</h1>
+      </div>
+      <div style="margin-top:1.25rem">
+        <div class="stat-row">
+          <div class="summary-stat">
+            <span>Пользователи</span>
+            <strong id="sv-users">—</strong>
+          </div>
+          <div class="summary-stat">
+            <span>Всего трансферов</span>
+            <strong id="sv-total">—</strong>
+          </div>
+          <div class="summary-stat">
+            <span>Сегодня</span>
+            <strong id="sv-today">—</strong>
+          </div>
+          <div class="summary-stat">
+            <span>Ошибки</span>
+            <strong id="sv-failed">—</strong>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-bottom:1.25rem">
+          <div class="panel-head">
+            <div>
+              <p class="panel-kicker">Активность</p>
+              <h2>Трансферы за 30 дней</h2>
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="transfersChart"></canvas></div>
+        </div>
+
+        <div class="panel" style="padding:0;overflow:hidden">
+          <div class="panel-head" style="padding:1rem 1.25rem 0.75rem;border-bottom:1px solid var(--line-strong)">
+            <div>
+              <p class="panel-kicker">Рейтинг</p>
+              <h2>Топ пользователей</h2>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table id="topUsersTable">
+              <thead><tr><th>#</th><th>Email</th><th>Трансферов</th></tr></thead>
+              <tbody><tr><td colspan="3"><div class="empty-state">Загрузка...</div></td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Users ── -->
+    <section id="users">
+      <div class="page-header">
+        <p class="panel-kicker">Управление</p>
+        <h1>Пользователи</h1>
+      </div>
+      <div style="margin-top:1.25rem">
+        <div class="panel" style="padding:0;overflow:hidden">
+          <div class="toolbar-bar">
+            <div class="toolbar">
+              <div class="search-wrap">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <circle cx="6.5" cy="6.5" r="5"/><path d="M10 10.5l3 3"/>
+                </svg>
+                <input type="text" id="userSearch" placeholder="Поиск по email / телефону..." class="adm-input" style="width:260px;padding-left:2rem"
+                  onkeydown="if(event.key==='Enter') loadUsers()" />
+              </div>
+              <button class="secondary-button btn-sm" onclick="loadUsers()">Найти</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table id="usersTable">
+              <thead>
+                <tr><th>ID</th><th>Email</th><th>Телефон</th><th>Статус</th><th>Тариф до</th><th>Лимит</th><th>Подключения</th><th>Действия</th></tr>
+              </thead>
+              <tbody><tr><td colspan="8"><div class="empty-state">Введите запрос или нажмите «Найти»</div></td></tr></tbody>
+            </table>
+          </div>
+          <div class="pagination" id="usersPagination"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Transfers ── -->
+    <section id="transfers">
+      <div class="page-header">
+        <p class="panel-kicker">Мониторинг</p>
+        <h1>Трансферы</h1>
+      </div>
+      <div style="margin-top:1.25rem">
+        <div class="panel" style="padding:0;overflow:hidden">
+          <div class="toolbar-bar">
+            <div class="toolbar">
+              <input type="number" id="filterUserId" placeholder="User ID" class="adm-input" style="width:110px" />
+              <select id="filterStatus" class="adm-input" style="width:160px">
+                <option value="">Все статусы</option>
+                <option value="pending">pending</option>
+                <option value="submitted">submitted</option>
+                <option value="processing">processing</option>
+                <option value="completed">completed</option>
+                <option value="failed">failed</option>
+              </select>
+              <button class="secondary-button btn-sm" onclick="loadTransfers()">Применить</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table id="transfersTable">
+              <thead>
+                <tr><th>ID</th><th>Пользователь</th><th>Источник → Цель</th><th>Статус</th><th>Дата</th><th>Ошибка</th><th>Действия</th></tr>
+              </thead>
+              <tbody><tr><td colspan="7"><div class="empty-state">Нажмите «Применить» для загрузки</div></td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Settings ── -->
+    <section id="settings">
+      <div class="page-header">
+        <p class="panel-kicker">Система</p>
+        <h1>Настройки</h1>
+      </div>
+      <div style="margin-top:1.25rem">
+        <div class="panel" style="max-width:560px">
+          <div class="panel-head" style="margin-bottom:1rem">
+            <div>
+              <p class="panel-kicker">Параметры</p>
+              <h2>Системные настройки</h2>
+            </div>
+          </div>
+          <div class="toggle-wrap">
+            <div class="toggle-info">
+              <label>Регистрация новых пользователей</label>
+              <small>Разрешить или запретить новые регистрации</small>
+            </div>
+            <label class="toggle"><input type="checkbox" id="settingRegEnabled" /><span class="toggle-slider"></span></label>
+          </div>
+          <div class="form-group" style="margin-top:1.25rem">
+            <label>Баннер для пользователей</label>
+            <textarea id="settingBanner" placeholder="Текст баннера (оставьте пустым, чтобы скрыть)" class="adm-input" style="width:100%;min-height:80px;resize:vertical;display:block"></textarea>
+            <div class="form-hint">Показывается в верхней части интерфейса</div>
+          </div>
+          <div class="form-group">
+            <label>Лимит трансферов по умолчанию</label>
+            <input type="number" id="settingLimit" placeholder="Например, 100" class="adm-input" style="width:100%" />
+            <div class="form-hint">Применяется к новым пользователям (0 = без лимита)</div>
+          </div>
+          <div class="save-row">
+            <button class="primary-button" onclick="saveSettings()" style="padding:0.6rem 1.5rem">Сохранить</button>
+            <div class="save-ok" id="settingsSaved">✓ Сохранено</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /mainContent -->
+</div><!-- /appShell -->
+
+<div id="toast"></div>
+
+<!-- ════════ MODALS ════════ -->
+
+<!-- Edit user -->
+<div class="modal-overlay" id="editUserModal">
+  <div class="panel adm-modal">
+    <div class="modal-header">
+      <div>
+        <h3>Редактировать пользователя</h3>
+        <p id="editUserSubtitle">ID: —</p>
+      </div>
+      <button class="modal-close" onclick="closeModal('editUserModal')">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2l12 12M14 2L2 14"/></svg>
+      </button>
+    </div>
+    <input type="hidden" id="editUserId" />
+    <div class="modal-grid-2">
+      <div class="form-group"><label>Телефон</label><input type="text" id="editPhone" placeholder="+7..." class="adm-input" style="width:100%" /></div>
+      <div class="form-group"><label>Лимит трансферов</label><input type="number" id="editTransferLimit" placeholder="∞ (не ограничен)" class="adm-input" style="width:100%" /></div>
+    </div>
+    <div class="form-group">
+      <label>Тариф активен до</label>
+      <input type="text" id="editPlanExpires" placeholder="2025-12-31T23:59:59" class="adm-input" style="width:100%" />
+      <div class="form-hint">Формат ISO 8601: YYYY-MM-DDTHH:MM:SS</div>
+    </div>
+    <div class="toggle-wrap" style="border:none;padding-top:0.25rem;padding-bottom:0.75rem">
+      <div class="toggle-info">
+        <label>Пользователь заблокирован</label>
+        <small>Вход и API будут недоступны</small>
+      </div>
+      <label class="toggle"><input type="checkbox" id="editIsBlocked" /><span class="toggle-slider"></span></label>
+    </div>
+    <div class="modal-section-label">История оплат</div>
+    <div class="table-wrap" style="border:1px solid var(--line-strong);border-radius:12px;max-height:160px;overflow-y:auto">
+      <table id="paymentsTable" style="font-size:0.75rem">
+        <thead><tr><th>Тариф</th><th>Сумма</th><th>Валюта</th><th>Дата</th></tr></thead>
+        <tbody><tr><td colspan="4" style="padding:0.75rem;text-align:center;color:var(--ink-soft)">—</td></tr></tbody>
+      </table>
+    </div>
+    <div style="margin-top:0.5rem">
+      <button class="ghost-button btn-sm" style="display:inline-flex;align-items:center;gap:6px" onclick="openAddPayment()">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v12M2 8h12"/></svg>
+        Добавить оплату
+      </button>
+    </div>
+    <div class="modal-actions">
+      <button class="ghost-button" onclick="closeModal('editUserModal')">Отмена</button>
+      <button class="primary-button" style="padding:0.55rem 1.25rem" onclick="submitEditUser()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add payment -->
+<div class="modal-overlay" id="paymentModal">
+  <div class="panel adm-modal" style="max-width:400px">
+    <div class="modal-header">
+      <div>
+        <h3>Добавить оплату</h3>
+        <p id="payUserSubtitle">Пользователь: —</p>
+      </div>
+      <button class="modal-close" onclick="closeModal('paymentModal')">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2l12 12M14 2L2 14"/></svg>
+      </button>
+    </div>
+    <input type="hidden" id="payUserId" />
+    <div class="form-group"><label>Название тарифа</label><input type="text" id="payPlan" placeholder="pro, business…" class="adm-input" style="width:100%" /></div>
+    <div class="modal-grid-2">
+      <div class="form-group"><label>Сумма</label><input type="number" id="payAmount" step="0.01" placeholder="0.00" class="adm-input" style="width:100%" /></div>
+      <div class="form-group"><label>Валюта</label><input type="text" id="payCurrency" value="RUB" class="adm-input" style="width:100%" /></div>
+    </div>
+    <div class="modal-actions">
+      <button class="ghost-button" onclick="closeModal('paymentModal')">Отмена</button>
+      <button class="primary-button" style="padding:0.55rem 1.25rem" onclick="submitPayment()">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Logs modal -->
+<div class="modal-overlay" id="logsModal">
+  <div class="panel adm-modal adm-modal-wide">
+    <div class="modal-header">
+      <div>
+        <h3>Логи трансфера</h3>
+        <p>Job ID: <span id="logsJobId">—</span></p>
+      </div>
+      <button class="modal-close" onclick="closeModal('logsModal')">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2l12 12M14 2L2 14"/></svg>
+      </button>
+    </div>
+    <div class="logs-meta" id="logsMeta"></div>
+    <div style="overflow-x:auto;border:1px solid var(--line-strong);border-radius:12px">
+      <table id="logsTable">
+        <thead><tr><th>#</th><th>Тип</th><th>Операция</th><th>URL</th><th>Статус</th><th>Длит., мс</th><th>Ошибка</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="modal-actions">
+      <button class="ghost-button" onclick="closeModal('logsModal')">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+const API = '/api/v1/admin';
+let TOKEN = localStorage.getItem('admin_token') || '';
+let transferChart = null;
+
+function esc(str) {
+  return String(str ?? '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function authHeaders() { return { 'Authorization':'Bearer '+TOKEN, 'Content-Type':'application/json' }; }
+
+async function apiFetch(path, opts={}) {
+  try {
+    const res = await fetch(API+path, { headers: authHeaders(), ...opts });
+    if (res.status===401 || res.status===403) { doLogout(); return null; }
+    return res;
+  } catch(e) { showToast('Ошибка сети: '+e.message,'err'); return null; }
+}
+
+function showToast(msg, type='ok') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className='show toast-'+type;
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>{ t.className=''; }, 3000);
+}
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('.modal-overlay').forEach(ov=>{
+  ov.addEventListener('click', e=>{ if(e.target===ov) ov.classList.remove('open'); });
+});
+
+function fmtDate(s) { if(!s) return '—'; return s.slice(0,16).replace('T',' '); }
+function badgeClass(status) {
+  const m={pending:'badge-warning',submitted:'badge-neutral',processing:'badge-neutral',completed:'badge-success',failed:'badge-danger'};
+  return m[status]||'badge-neutral';
+}
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+
+async function doLogin() {
+  const email    = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errEl    = document.getElementById('loginError');
+  errEl.style.display = 'none';
+  if (!email||!password) { errEl.textContent='Введите email и пароль.'; errEl.style.display='block'; return; }
+
+  const res = await fetch('/api/v1/auth/login', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({email,password}),
+  });
+  if (!res.ok) { errEl.textContent='Неверный email или пароль.'; errEl.style.display='block'; return; }
+  const data = await res.json();
+  TOKEN = data.access_token;
+  localStorage.setItem('admin_token', TOKEN);
+
+  const check = await fetch(API+'/stats', { headers: authHeaders() });
+  if (!check.ok) {
+    errEl.textContent='Аккаунт не имеет прав администратора.'; errEl.style.display='block';
+    TOKEN=''; localStorage.removeItem('admin_token'); return;
+  }
+  showApp(data.user ? data.user.email : email);
+}
+
+function doLogout() {
+  TOKEN=''; localStorage.removeItem('admin_token');
+  document.getElementById('appShell').style.display='none';
+  document.getElementById('loginScreen').style.display='flex';
+  if (transferChart) { transferChart.destroy(); transferChart=null; }
+}
+
+function showApp(email) {
+  document.getElementById('loginScreen').style.display='none';
+  const shell = document.getElementById('appShell');
+  shell.style.display='flex';
+  document.getElementById('sidebarEmail').textContent = email||'—';
+  document.getElementById('sidebarAvatarLetter').textContent = (email||'A')[0].toUpperCase();
+  loadDashboard();
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+
+function showSection(id, btn) {
+  document.querySelectorAll('section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (btn) btn.classList.add('active');
+  else { const b=document.querySelector(`.nav-item[data-section="${id}"]`); if(b) b.classList.add('active'); }
+  if (id==='dashboard') loadDashboard();
+  if (id==='users')     loadUsers();
+  if (id==='transfers') loadTransfers();
+  if (id==='settings')  loadSettings();
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+
+async function loadDashboard() {
+  const res = await apiFetch('/stats');
+  if (!res) return;
+  const d = await res.json();
+
+  document.getElementById('sv-users').textContent  = d.total_users   ?? '—';
+  document.getElementById('sv-total').textContent  = d.total_transfers ?? '—';
+  document.getElementById('sv-today').textContent  = d.today_transfers ?? '—';
+  document.getElementById('sv-failed').textContent = d.failed_transfers ?? '—';
+
+  const tu = document.querySelector('#topUsersTable tbody');
+  if (d.top_users && d.top_users.length) {
+    tu.innerHTML = d.top_users.map((u,i)=>`
+      <tr>
+        <td class="td-muted">${i+1}</td>
+        <td>${esc(u.email)}</td>
+        <td><span class="badge badge-neutral">${u.count}</span></td>
+      </tr>`).join('');
+  } else {
+    tu.innerHTML='<tr><td colspan="3"><div class="empty-state">Нет данных</div></td></tr>';
+  }
+
+  const byDay  = (d.transfers_by_day||[]).slice(-30);
+  const labels = byDay.map(r=>{ const p=(r.date||'').split('-'); return p.length===3?p[2]+'.'+p[1]:r.date; });
+  const counts = byDay.map(r=>r.count||0);
+  const errors = byDay.map(r=>r.errors||0);
+
+  const ctx = document.getElementById('transfersChart').getContext('2d');
+  if (transferChart) transferChart.destroy();
+  transferChart = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels,
+      datasets:[
+        { label:'Трансферы', data:counts, borderColor:'#6344ff', backgroundColor:'rgba(99,68,255,0.07)',
+          borderWidth:2, pointRadius:3, pointBackgroundColor:'#6344ff', tension:0.35, fill:true },
+        { label:'Ошибки',    data:errors, borderColor:'#c926ff', backgroundColor:'rgba(201,38,255,0.06)',
+          borderWidth:2, pointRadius:3, pointBackgroundColor:'#c926ff', tension:0.35, fill:true },
+      ],
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{ mode:'index', intersect:false },
+      plugins:{
+        legend:{ labels:{ color:'#5d6586', font:{family:'Segoe UI',size:11}, boxWidth:12, boxHeight:2 } },
+        tooltip:{ backgroundColor:'rgba(255,255,255,0.97)', borderColor:'rgba(73,89,146,0.15)',
+          borderWidth:1, titleColor:'#121729', bodyColor:'#5d6586',
+          titleFont:{family:'Segoe UI',size:12}, bodyFont:{family:'Segoe UI',size:11}, padding:10 },
+      },
+      scales:{
+        x:{ grid:{color:'rgba(73,89,146,0.06)'}, ticks:{color:'#5d6586',font:{family:'Segoe UI',size:10},maxTicksLimit:10} },
+        y:{ grid:{color:'rgba(73,89,146,0.06)'}, ticks:{color:'#5d6586',font:{family:'Segoe UI',size:10},precision:0}, beginAtZero:true },
+      },
+    },
+  });
+
+  const settRes = await apiFetch('/settings');
+  if (settRes && settRes.ok) {
+    const s = await settRes.json();
+    const bannerEl = document.getElementById('banner');
+    if (s.banner_text) {
+      document.getElementById('bannerText').textContent = s.banner_text;
+      bannerEl.style.display = 'flex';
+    } else { bannerEl.style.display='none'; }
+  }
+}
+
+// ── Users ─────────────────────────────────────────────────────────────────────
+
+async function loadUsers() {
+  const search = document.getElementById('userSearch').value.trim();
+  const qs = search ? '?search='+encodeURIComponent(search) : '';
+  const res = await apiFetch('/users'+qs);
+  if (!res) return;
+  const users = await res.json();
+  const tbody = document.querySelector('#usersTable tbody');
+  if (!users.length) {
+    tbody.innerHTML='<tr><td colspan="8"><div class="empty-state">Пользователи не найдены</div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = users.map(u=>`
+    <tr>
+      <td class="td-muted td-mono">${u.id}</td>
+      <td>${esc(u.email)}</td>
+      <td class="td-muted">${esc(u.phone||'—')}</td>
+      <td><span class="badge ${u.is_blocked?'badge-danger':'badge-success'}">${u.is_blocked?'заблокирован':'активен'}</span></td>
+      <td class="td-muted">${fmtDate(u.plan_expires_at)}</td>
+      <td class="td-muted">${u.transfer_limit??'∞'}</td>
+      <td class="td-muted">${(u.connections||[]).join(', ')||'—'}</td>
+      <td>
+        <div style="display:flex;gap:4px;align-items:center">
+          <button class="icon-btn" title="Редактировать" onclick='openEditUser(${JSON.stringify(u)})'>
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11.5 2.5l2 2-9 9H2.5v-2l9-9z"/></svg>
+          </button>
+          <button class="icon-btn icon-btn-danger" title="Удалить" onclick="deleteUser(${u.id})">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M5 4V2h6v2M6 7v5M10 7v5M3 4l1 9h8l1-9"/></svg>
+          </button>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+function openEditUser(u) {
+  document.getElementById('editUserId').value    = u.id;
+  document.getElementById('editUserSubtitle').textContent = `ID: ${u.id} · ${u.email}`;
+  document.getElementById('editPhone').value     = u.phone||'';
+  document.getElementById('editPlanExpires').value = u.plan_expires_at||'';
+  document.getElementById('editTransferLimit').value = u.transfer_limit??'';
+  document.getElementById('editIsBlocked').checked = !!u.is_blocked;
+  loadPayments(u.id);
+  openModal('editUserModal');
+}
+
+async function loadPayments(userId) {
+  const res = await apiFetch(`/users/${userId}`);
+  const tbody = document.querySelector('#paymentsTable tbody');
+  if (!res||!res.ok) {
+    tbody.innerHTML='<tr><td colspan="4" style="padding:0.6rem;color:var(--ink-soft);text-align:center">—</td></tr>';
+    return;
+  }
+  const user = await res.json();
+  const payments = user.payment_history||[];
+  if (!payments.length) {
+    tbody.innerHTML='<tr><td colspan="4" style="padding:0.6rem;color:var(--ink-soft);text-align:center">Нет оплат</td></tr>';
+    return;
+  }
+  tbody.innerHTML = payments.map(p=>`
+    <tr>
+      <td>${esc(p.plan_name)}</td><td>${p.amount}</td><td>${esc(p.currency)}</td>
+      <td class="td-muted">${fmtDate(p.created_at)}</td>
+    </tr>`).join('');
+}
+
+async function submitEditUser() {
+  const id = document.getElementById('editUserId').value;
+  const limitVal = document.getElementById('editTransferLimit').value;
+  const body = {
+    phone: document.getElementById('editPhone').value||null,
+    plan_expires_at: document.getElementById('editPlanExpires').value||null,
+    transfer_limit: limitVal!==''?parseInt(limitVal):null,
+    is_blocked: document.getElementById('editIsBlocked').checked,
+  };
+  const res = await apiFetch(`/users/${id}`, {method:'PATCH',body:JSON.stringify(body)});
+  if (res&&res.ok) { closeModal('editUserModal'); showToast('Пользователь обновлён','ok'); loadUsers(); }
+  else showToast('Ошибка при сохранении','err');
+}
+
+async function deleteUser(id) {
+  if (!confirm(`Удалить пользователя ${id}? Это действие необратимо.`)) return;
+  const res = await apiFetch(`/users/${id}`, {method:'DELETE'});
+  if (res&&res.ok) { showToast('Пользователь удалён','ok'); loadUsers(); }
+  else showToast('Ошибка при удалении','err');
+}
+
+function openAddPayment() {
+  const userId = document.getElementById('editUserId').value;
+  document.getElementById('payUserId').value = userId;
+  document.getElementById('payUserSubtitle').textContent = `Пользователь: ${userId}`;
+  document.getElementById('payPlan').value = '';
+  document.getElementById('payAmount').value = '';
+  document.getElementById('payCurrency').value = 'RUB';
+  openModal('paymentModal');
+}
+
+async function submitPayment() {
+  const id = document.getElementById('payUserId').value;
+  const body = {
+    plan_name: document.getElementById('payPlan').value,
+    amount: parseFloat(document.getElementById('payAmount').value),
+    currency: document.getElementById('payCurrency').value,
+  };
+  const res = await apiFetch(`/users/${id}/payment`, {method:'POST',body:JSON.stringify(body)});
+  if (res&&res.ok) { closeModal('paymentModal'); showToast('Оплата добавлена','ok'); loadPayments(id); }
+  else showToast('Ошибка при добавлении оплаты','err');
+}
+
+// ── Transfers ─────────────────────────────────────────────────────────────────
+
+async function loadTransfers() {
+  const uid = document.getElementById('filterUserId').value.trim();
+  const st  = document.getElementById('filterStatus').value;
+  let qs = '?limit=100';
+  if (uid) qs += '&user_id='+encodeURIComponent(uid);
+  if (st)  qs += '&status='+encodeURIComponent(st);
+
+  const res = await apiFetch('/transfers'+qs);
+  if (!res) return;
+  const rows = await res.json();
+  const tbody = document.querySelector('#transfersTable tbody');
+  if (!rows.length) {
+    tbody.innerHTML='<tr><td colspan="7"><div class="empty-state">Трансферы не найдены</div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(r=>{
+    const canCancel = r.status==='pending'||r.status==='processing'||r.status==='submitted';
+    const src=r.source_marketplace||'', tgt=r.target_marketplace||'';
+    const srcCls=src.includes('wb')?'mp-wb':(src.includes('ozon')?'mp-ozon':'');
+    const tgtCls=tgt.includes('wb')?'mp-wb':(tgt.includes('ozon')?'mp-ozon':'');
+    return `<tr>
+      <td class="td-muted td-mono">${r.id}</td>
+      <td><div>${r.user_id}</div><div class="td-muted">${esc(r.user_email||'')}</div></td>
+      <td><span class="direction"><span class="${srcCls}">${esc(src)}</span><span class="direction-arrow">→</span><span class="${tgtCls}">${esc(tgt)}</span></span></td>
+      <td><span class="badge ${badgeClass(r.status)}">${esc(r.status)}</span></td>
+      <td class="td-muted">${fmtDate(r.created_at)}</td>
+      <td class="td-truncate td-danger" style="max-width:160px" title="${esc(r.error_message||'')}">
+        ${esc(r.error_message||'—')}
+      </td>
+      <td>
+        <div style="display:flex;gap:4px">
+          <button class="icon-btn" title="Логи" onclick="viewLogs(${r.id})">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M2 4h12M2 8h8M2 12h5"/>
+            </svg>
+          </button>
+          ${canCancel?`<button class="icon-btn icon-btn-danger" title="Отменить" onclick="cancelTransfer(${r.id})">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="7"/><path d="M5 5l6 6M11 5l-6 6"/></svg>
+          </button>`:''}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function cancelTransfer(id) {
+  if (!confirm(`Отменить трансфер ${id}?`)) return;
+  const res = await apiFetch(`/transfers/${id}/cancel`, {method:'POST'});
+  if (res&&res.ok) { showToast('Трансфер отменён','ok'); loadTransfers(); }
+  else showToast('Ошибка при отмене','err');
+}
+
+async function viewLogs(id) {
+  document.getElementById('logsJobId').textContent = id;
+  document.getElementById('logsMeta').innerHTML = '';
+  document.querySelector('#logsTable tbody').innerHTML =
+    '<tr><td colspan="7" style="padding:1rem;text-align:center;color:var(--ink-soft)">Загрузка...</td></tr>';
+  openModal('logsModal');
+
+  const res = await apiFetch(`/transfers/${id}/logs`);
+  if (!res) return;
+  const logs = await res.json();
+
+  if (logs.length) {
+    const first = logs[0];
+    document.getElementById('logsMeta').innerHTML = [
+      first.base_token ? `<div class="logs-meta-item"><span>Base token: </span><strong class="td-mono">${esc(first.base_token.slice(0,20))}…</strong></div>` : '',
+    ].join('');
+  }
+
+  const tbody = document.querySelector('#logsTable tbody');
+  if (!logs.length) {
+    tbody.innerHTML='<tr><td colspan="7"><div class="empty-state">Логи отсутствуют</div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = logs.map(l=>`
+    <tr>
+      <td class="td-muted">${l.sequence_no??'—'}</td>
+      <td><span class="badge badge-neutral">${esc(l.event_type||'—')}</span></td>
+      <td>${esc(l.operation||'—')}</td>
+      <td class="td-truncate td-mono" style="max-width:220px" title="${esc(l.request_url||'')}">
+        ${esc(l.request_url||'—')}
+      </td>
+      <td>${l.status_code!=null?`<span class="badge ${l.status_code>=400?'badge-danger':'badge-success'}">${l.status_code}</span>`:'—'}</td>
+      <td class="td-muted">${l.duration_ms!=null?l.duration_ms+' мс':'—'}</td>
+      <td class="td-truncate td-danger" style="max-width:160px" title="${esc(l.error_text||'')}">
+        ${esc(l.error_text||'')||'—'}
+      </td>
+    </tr>`).join('');
+}
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+
+async function loadSettings() {
+  const res = await apiFetch('/settings');
+  if (!res||!res.ok) return;
+  const s = await res.json();
+  document.getElementById('settingRegEnabled').checked = !!s.registration_enabled;
+  document.getElementById('settingBanner').value       = s.banner_text||'';
+  document.getElementById('settingLimit').value        = s.default_transfer_limit??'';
+}
+
+async function saveSettings() {
+  const body = {
+    registration_enabled: document.getElementById('settingRegEnabled').checked,
+    banner_text:          document.getElementById('settingBanner').value,
+    default_transfer_limit: parseInt(document.getElementById('settingLimit').value)||0,
+  };
+  const res = await apiFetch('/settings', {method:'PUT',body:JSON.stringify(body)});
+  if (res&&res.ok) {
+    const msg = document.getElementById('settingsSaved');
+    msg.style.display='flex'; showToast('Настройки сохранены','ok');
+    setTimeout(()=>{ msg.style.display='none'; }, 2500);
+  } else showToast('Ошибка при сохранении настроек','err');
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+
+(async()=>{
+  if (!TOKEN) return;
+  try {
+    const res = await fetch('/api/v1/auth/me', { headers:{'Authorization':'Bearer '+TOKEN} });
+    if (!res.ok) throw new Error();
+    const u = await res.json();
+    const check = await fetch(API+'/stats', { headers: authHeaders() });
+    if (!check.ok) throw new Error();
+    showApp(u.email);
+  } catch { TOKEN=''; localStorage.removeItem('admin_token'); }
+})();
+</script>
+</body>
+</html>
