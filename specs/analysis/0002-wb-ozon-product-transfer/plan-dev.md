@@ -125,10 +125,10 @@ milestone: v1.0.0
 - **Type:** task
 
 Подзадачи:
-- [ ] 7.1. В `TransferPreviewItem` добавить поля: `brand_id_suggestion: int | None = None`, `brand_id_requires_manual: bool = False`, `category_confidence: float | None = None`, `category_requires_manual: bool = False`
-- [ ] 7.2. Добавить Pydantic-модель `ProductOverride` с полями: `category_id: int | None = None`, `brand_id: int | None = None`, `price: str | None = None`, `attributes: list | None = None`
-- [ ] 7.3. В `TransferPreviewRequest` изменить тип поля `product_overrides` на `dict[str, ProductOverride] | None = None`
-- [ ] 7.4. В `TransferRequest` аналогично расширить `product_overrides` до `dict[str, ProductOverride] | None = None`
+- [x] 7.1. В `TransferPreviewItem` добавить поля: `brand_id_suggestion: int | None = None`, `brand_id_requires_manual: bool = False`, `category_confidence: float | None = None`, `category_requires_manual: bool = False`
+- [x] 7.2. Добавить Pydantic-модель `ProductOverride` с полями: `category_id: int | None = None`, `brand_id: int | None = None`, `price: str | None = None`, `attributes: list | None = None`
+- [x] 7.3. В `TransferPreviewRequest` изменить тип поля `product_overrides` на `dict[str, ProductOverride] | None = None`
+- [x] 7.4. В `TransferRequest` аналогично расширить `product_overrides` до `dict[str, ProductOverride] | None = None`
 
 #### TASK-8: Добавить GET /api/v1/catalog/{marketplace}/brands
 - **Сложность:** 3/10
@@ -140,10 +140,10 @@ milestone: v1.0.0
 - **Type:** feature
 
 Подзадачи:
-- [ ] 8.1. В `app/api/routes/catalog.py` добавить endpoint `GET /api/v1/catalog/{marketplace}/brands` с query-параметрами `q: str` (обязательно) и `limit: int = Query(default=20, le=100)`
-- [ ] 8.2. Проверить что `marketplace == "ozon"` — если нет, вернуть `HTTPException(status_code=400, detail="Only ozon marketplace supports brand search")`
-- [ ] 8.3. Вызвать `ozon_client.list_brands(credentials, query=q, limit=limit)` и вернуть `{"items": [...], "total": len(items)}` со структурой `[{"id": ..., "name": ...}]`
-- [ ] 8.4. Обработать ошибки подключения к Ozon API — вернуть 502 Bad Gateway с кодом `OZON_API_UNAVAILABLE`
+- [x] 8.1. В `app/api/routes/catalog.py` добавить endpoint `GET /api/v1/catalog/{marketplace}/brands` с query-параметрами `q: str` (обязательно) и `limit: int = Query(default=20, le=100)`
+- [x] 8.2. Проверить что `marketplace == "ozon"` — если нет, вернуть `HTTPException(status_code=400, detail="Only ozon marketplace supports brand search")`
+- [x] 8.3. Вызвать `ozon_client.list_brands(credentials, query=q, limit=limit)` и вернуть `{"items": [...], "total": len(items)}` со структурой `[{"id": ..., "name": ...}]`
+- [x] 8.4. Обработать ошибки подключения к Ozon API — вернуть 502 Bad Gateway с кодом `OZON_API_UNAVAILABLE`
 
 #### TASK-9: Расширить TransferService.preview() и launch() — product_overrides, блокировка, LLM и бренды
 - **Сложность:** 6/10
@@ -155,13 +155,13 @@ milestone: v1.0.0
 - **Type:** feature
 
 Подзадачи:
-- [ ] 9.1. В `TransferService.preview()`: если в `product_overrides[product_id]` задан `category_id` — использовать его напрямую, пропустить вызов `auto_match_category_llm()`; иначе вызвать `mapping_service.auto_match_category_llm()` и заполнить `category_confidence` и `category_requires_manual`
-- [ ] 9.2. В `TransferService.preview()`: вызвать `mapping_service.find_brand_id()` для определения `brand_id_suggestion`; если в `product_overrides[product_id]` задан `brand_id` — использовать его, `brand_id_requires_manual=false`; если не найден в справочнике — `brand_id_requires_manual=true`
-- [ ] 9.3. В `TransferService.preview()`: вызвать `list_categories(ozon)` для получения актуального дерева категорий при каждом запросе (не кэшировать), передать в `auto_match_category_llm()`
-- [ ] 9.4. В `TransferService.preview()` для WB→Ozon: проверить `mediaFiles` — если пуст, добавить предупреждение в `warnings` и установить `ready_to_import=false`
-- [ ] 9.5. В `TransferService.preview()`: вычислить `ready_to_import = not (category_requires_manual or brand_id_requires_manual)` с учётом переданных overrides
-- [ ] 9.6. В `TransferService.launch()`: проверить `category_requires_manual` и `brand_id_requires_manual` — если хотя бы одно `true` и соответствующий override не передан, вернуть `HTTPException(status_code=400)`
-- [ ] 9.7. Обработать ошибки подключения к WB API и Ozon API в `preview()` и `launch()` — вернуть 502 Bad Gateway с кодом `WB_API_UNAVAILABLE` или `OZON_API_UNAVAILABLE`
+- [x] 9.1. В `TransferService.preview()`: если в `product_overrides[product_id]` задан `category_id` — использовать его напрямую, пропустить вызов `auto_match_category_llm()`; иначе вызвать `mapping_service.auto_match_category_llm()` и заполнить `category_confidence` и `category_requires_manual`
+- [x] 9.2. В `TransferService.preview()`: вызвать `mapping_service.find_brand_id()` для определения `brand_id_suggestion`; если в `product_overrides[product_id]` задан `brand_id` — использовать его, `brand_id_requires_manual=false`; если не найден в справочнике — `brand_id_requires_manual=true`
+- [x] 9.3. В `TransferService.preview()`: вызвать `list_categories(ozon)` для получения актуального дерева категорий при каждом запросе (не кэшировать), передать в `auto_match_category_llm()`
+- [x] 9.4. В `TransferService.preview()` для WB→Ozon: проверить `mediaFiles` — если пуст, добавить предупреждение в `warnings` и установить `ready_to_import=false`
+- [x] 9.5. В `TransferService.preview()`: вычислить `ready_to_import = not (category_requires_manual or brand_id_requires_manual)` с учётом переданных overrides
+- [x] 9.6. В `TransferService.launch()`: проверить `category_requires_manual` и `brand_id_requires_manual` — если хотя бы одно `true` и соответствующий override не передан, вернуть `HTTPException(status_code=400)`
+- [x] 9.7. Обработать ошибки подключения к WB API и Ozon API в `preview()` и `launch()` — вернуть 502 Bad Gateway с кодом `WB_API_UNAVAILABLE` или `OZON_API_UNAVAILABLE`
 
 #### TASK-10: Написать e2e системные тесты (TC-30..TC-36)
 - **Сложность:** 5/10
