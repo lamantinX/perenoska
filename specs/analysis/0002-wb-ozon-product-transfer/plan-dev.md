@@ -56,9 +56,9 @@ milestone: v1.0.0
 - **Type:** feature
 
 Подзадачи:
-- [ ] 3.1. Импортировать `AsyncOpenAI` из `openai` в `container.py`
-- [ ] 3.2. В `ServiceContainer.__init__` создать `AsyncOpenAI(base_url="https://openrouter.ai/api/v1", api_key=settings.openrouter_api_key)` и сохранить как `self.llm_client`
-- [ ] 3.3. Обновить создание `MappingService` — передать `llm_client=self.llm_client` и `llm_model=settings.llm_model`
+- [x] 3.1. Импортировать `AsyncOpenAI` из `openai` в `container.py`
+- [x] 3.2. В `ServiceContainer.__init__` создать `AsyncOpenAI(base_url="https://openrouter.ai/api/v1", api_key=settings.openrouter_api_key)` и сохранить как `self.llm_client`
+- [x] 3.3. Обновить создание `MappingService` — передать `llm_client=self.llm_client` и `llm_model=settings.llm_model`
 
 ## SVC-1: perenoska
 
@@ -92,12 +92,12 @@ milestone: v1.0.0
 - **Type:** feature
 
 Подзадачи:
-- [ ] 5.1. В `app/clients/ozon.py` добавить метод `list_brands(credentials, query: str, limit: int = 100) -> list[dict]` — POST `/v1/brand/list` с телом `{"filters": {"brand_name_search": query}, "last_id": 0, "limit": limit}`
-- [ ] 5.2. В `app/services/mapping.py` добавить метод `find_brand_id(credentials, brand_name: str, ozon_client) -> tuple[int | None, bool]`
-- [ ] 5.3. В `find_brand_id`: реализовать точное совпадение (case-sensitive) по полю `name` из ответа `list_brands`
-- [ ] 5.4. В `find_brand_id`: если точное не найдено — регистронезависимое совпадение (`brand_name.lower() == entry["name"].lower()`)
-- [ ] 5.5. В `find_brand_id`: если регистронезависимое не найдено — поиск по подстроке (`brand_name.lower() in entry["name"].lower()` или наоборот)
-- [ ] 5.6. В `find_brand_id`: если ни один вариант не дал результат — вернуть `(None, False)`
+- [x] 5.1. В `app/clients/ozon.py` добавить метод `list_brands(credentials, query: str, limit: int = 100) -> list[dict]` — POST `/v1/brand/list` с телом `{"filters": {"brand_name_search": query}, "last_id": 0, "limit": limit}`
+- [x] 5.2. В `app/services/mapping.py` добавить метод `find_brand_id(credentials, brand_name: str, ozon_client) -> tuple[int | None, bool]`
+- [x] 5.3. В `find_brand_id`: реализовать точное совпадение (case-sensitive) по полю `name` из ответа `list_brands`
+- [x] 5.4. В `find_brand_id`: если точное не найдено — регистронезависимое совпадение (`brand_name.lower() == entry["name"].lower()`)
+- [x] 5.5. В `find_brand_id`: если регистронезависимое не найдено — поиск по подстроке (`brand_name.lower() in entry["name"].lower()` или наоборот)
+- [x] 5.6. В `find_brand_id`: если ни один вариант не дал результат — вернуть `(None, False)`
 
 #### TASK-6: Добавить auto_match_category_llm() в MappingService
 - **Сложность:** 5/10
@@ -109,11 +109,11 @@ milestone: v1.0.0
 - **Type:** feature
 
 Подзадачи:
-- [ ] 6.1. Удалить (или переименовать) метод `auto_match_category()` с реализацией на `SequenceMatcher`; добавить метод `auto_match_category_llm(source_category_name: str, target_categories: list[dict]) -> tuple[dict | None, float]`
-- [ ] 6.2. Обновить `MappingService.__init__` — принять параметры `llm_client: AsyncOpenAI` и `llm_model: str`; сохранить как `self.llm_client` и `self.llm_model`
-- [ ] 6.3. В `auto_match_category_llm`: сформировать промпт с именем категории источника и списком категорий таргета `[{id, name}]` (не более 50 leaf-категорий); запросить JSON-ответ `{"category_id": N, "confidence": float}`
-- [ ] 6.4. Вызвать `self.llm_client.chat.completions.create(model=self.llm_model, ...)` через `await`; обработать ответ: распарсить JSON из `content`
-- [ ] 6.5. Валидировать `category_id` из ответа: если отсутствует в справочнике категорий — вернуть `(None, 0.0)`; если `confidence < 0.7` — вернуть `(CategoryNode, confidence)` (сигнал для `category_requires_manual=true`); если `confidence >= 0.7` — вернуть `(CategoryNode, confidence)`
+- [x] 6.1. Удалить (или переименовать) метод `auto_match_category()` с реализацией на `SequenceMatcher`; добавить метод `auto_match_category_llm(source_category_name: str, target_categories: list[dict]) -> tuple[dict | None, float]`
+- [x] 6.2. Обновить `MappingService.__init__` — принять параметры `llm_client: AsyncOpenAI` и `llm_model: str`; сохранить как `self.llm_client` и `self.llm_model`
+- [x] 6.3. В `auto_match_category_llm`: сформировать промпт с именем категории источника и списком категорий таргета `[{id, name}]` (не более 50 leaf-категорий); запросить JSON-ответ `{"category_id": N, "confidence": float}`
+- [x] 6.4. Вызвать `self.llm_client.chat.completions.create(model=self.llm_model, ...)` через `await`; обработать ответ: распарсить JSON из `content`
+- [x] 6.5. Валидировать `category_id` из ответа: если отсутствует в справочнике категорий — вернуть `(None, 0.0)`; если `confidence < 0.7` — вернуть `(CategoryNode, confidence)` (сигнал для `category_requires_manual=true`); если `confidence >= 0.7` — вернуть `(CategoryNode, confidence)`
 
 #### TASK-7: Расширить app/schemas.py — TransferPreviewItem и product_overrides
 - **Сложность:** 3/10
