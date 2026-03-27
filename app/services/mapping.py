@@ -6,12 +6,12 @@ import re
 from difflib import SequenceMatcher
 from typing import TYPE_CHECKING, Any
 
-logger = logging.getLogger(__name__)
-
 from app.schemas import CategoryAttribute, CategoryNode, ProductDetails
 
 if TYPE_CHECKING:
     from openai import AsyncOpenAI
+
+logger = logging.getLogger(__name__)
 
 
 class MappingService:

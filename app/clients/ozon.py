@@ -208,6 +208,24 @@ class OzonClient(MarketplaceClient):
             "type_name": best.get("type_name"),
         }
 
+    async def list_brands(
+        self,
+        credentials: dict[str, Any],
+        query: str,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """Search brands in Ozon catalogue via POST /v1/brand/list.
+
+        Returns list of dicts with keys ``id`` and ``name``.
+        """
+        payload = {
+            "filters": {"brand_name_search": query},
+            "last_id": 0,
+            "limit": limit,
+        }
+        data = await self._request("POST", "/v1/brand/list", credentials, json=payload)
+        return data.get("result") or []
+
     async def create_products(self, credentials: dict[str, Any], items: list[dict[str, Any]]) -> dict[str, Any]:
         data = await self._request("POST", "/v3/product/import", credentials, json={"items": items})
         result = data.get("result") or data

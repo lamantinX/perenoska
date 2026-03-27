@@ -74,13 +74,13 @@ milestone: v1.0.0
 - **Type:** feature
 
 Подзадачи:
-- [ ] 4.1. Для направления WB→Ozon: заменить ключ `"description"` на `"annotation"` в формируемом payload Ozon; перенести `product["description"]` → `payload["annotation"]`
-- [ ] 4.2. Для направления WB→Ozon: перенести `product["vendorCode"]` → `payload["offer_id"]`, `product["title"]` → `payload["name"]`
-- [ ] 4.3. Для направления WB→Ozon: перенести список URL из `mediaFiles` (поле `"big"`) → `payload["images"]`; если `mediaFiles` пуст — добавить предупреждение в `warnings` и установить `ready_to_import=false`
-- [ ] 4.4. Для направления WB→Ozon: убедиться что payload не содержит явного поля `is_visible` или `status` (карточка создаётся черновиком по умолчанию)
-- [ ] 4.5. Для направления Ozon→WB: перенести `product["annotation"]` → `payload["description"]`, `product["name"]` → `payload["title"]`; убедиться что payload не содержит поля статуса публикации
-- [ ] 4.6. Маппинг атрибутов WB→Ozon: перенести совпадающие по `FIELD_SYNONYMS` атрибуты из `characteristics` в `attributes`; несопоставленные атрибуты добавить в `missing_attributes`
-- [ ] 4.7. Маппинг атрибутов Ozon→WB: перенести совпадающие атрибуты из `attributes` Ozon в `characteristics` WB; несопоставленные — в `missing_attributes`
+- [x] 4.1. Для направления WB→Ozon: заменить ключ `"description"` на `"annotation"` в формируемом payload Ozon; перенести `product["description"]` → `payload["annotation"]`
+- [x] 4.2. Для направления WB→Ozon: перенести `product["vendorCode"]` → `payload["offer_id"]`, `product["title"]` → `payload["name"]`
+- [x] 4.3. Для направления WB→Ozon: перенести список URL из `mediaFiles` (поле `"big"`) → `payload["images"]`; если `mediaFiles` пуст — добавить предупреждение в `warnings` и установить `ready_to_import=false`
+- [x] 4.4. Для направления WB→Ozon: убедиться что payload не содержит явного поля `is_visible` или `status` (карточка создаётся черновиком по умолчанию)
+- [x] 4.5. Для направления Ozon→WB: перенести `product["annotation"]` → `payload["description"]`, `product["name"]` → `payload["title"]`; убедиться что payload не содержит поля статуса публикации
+- [x] 4.6. Маппинг атрибутов WB→Ozon: перенести совпадающие по `FIELD_SYNONYMS` атрибуты из `characteristics` в `attributes`; несопоставленные атрибуты добавить в `missing_attributes`
+- [x] 4.7. Маппинг атрибутов Ozon→WB: перенести совпадающие атрибуты из `attributes` Ozon в `characteristics` WB; несопоставленные — в `missing_attributes`
 
 #### TASK-5: Добавить find_brand_id() в MappingService и list_brands() в OzonClient
 - **Сложность:** 4/10
