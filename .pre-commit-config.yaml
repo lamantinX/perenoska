@@ -241,14 +241,14 @@ repos:
         require_serial: true
         stages: [pre-commit]
 
-      # 26. Валидация analysis/*/review.md
+      # 26. Валидация analysis/*/review.md (pre-push: только перед отправкой PR)
       - id: review-validate
         name: Validate review documents
         entry: python .github/.instructions/.scripts/validate-review.py
         language: system
         pass_filenames: false
         always_run: true
-        stages: [pre-commit]
+        stages: [pre-push]
 
       # 27. Валидация формата commit message
       - id: validate-commit-msg
