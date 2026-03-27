@@ -173,14 +173,14 @@ milestone: v1.0.0
 - **Type:** test
 
 Подзадачи:
-- [ ] 10.1. Создать файл `tests/test_system_e2e.py` с общей фикстурой `client` (FakeWBClient + FakeOzonClient + AsyncMock LLM) и базовыми хелперами авторизации
-- [ ] 10.2. TC-30: тест полного цикла preview WB→Ozon — LLM confidence ≥ 0.7, бренд найден точным совпадением → `ready_to_import=true`, `category_requires_manual=false`, `brand_id_requires_manual=false`
-- [ ] 10.3. TC-31: тест полного цикла переноса WB→Ozon — карточка создаётся на Ozon с полями `annotation`, `name`, `offer_id`, `brand_id`, `images`; payload не содержит `is_visible` или `status`
-- [ ] 10.4. TC-32: двухшаговый тест — первый preview без бренда (`brand_id_requires_manual=true`, `ready_to_import=false`), затем повторный preview с `brand_id` override → `ready_to_import=true`
-- [ ] 10.5. TC-33: двухшаговый тест — первый preview с LLM confidence < 0.7 (`category_requires_manual=true`, `ready_to_import=false`), затем повторный preview с `category_id` override → `ready_to_import=true`
-- [ ] 10.6. TC-34: тест полного цикла переноса Ozon→WB — карточка создаётся на WB с полями `description` (из `annotation`), `title`, `vendor_code` (из `offer_id`), `brand` как строкой, `images`, `subjectID`; payload не содержит поле статуса публикации
-- [ ] 10.7. TC-35: тест preview WB→Ozon с `mediaFiles=[]` — ответ содержит предупреждение в `warnings`, `ready_to_import=false`
-- [ ] 10.8. TC-36: тест обработки сетевых ошибок — FakeWBClient выбрасывает ConnectionError → 502 с кодом `WB_API_UNAVAILABLE`; FakeOzonClient выбрасывает ConnectionError → 502 с кодом `OZON_API_UNAVAILABLE`
+- [x] 10.1. Создать файл `tests/test_system_e2e.py` с общей фикстурой `client` (FakeWBClient + FakeOzonClient + AsyncMock LLM) и базовыми хелперами авторизации
+- [x] 10.2. TC-30: тест полного цикла preview WB→Ozon — LLM confidence ≥ 0.7, бренд найден точным совпадением → `ready_to_import=true`, `category_requires_manual=false`, `brand_id_requires_manual=false`
+- [x] 10.3. TC-31: тест полного цикла переноса WB→Ozon — карточка создаётся на Ozon с полями `annotation`, `name`, `offer_id`, `brand_id`, `images`; payload не содержит `is_visible` или `status`
+- [x] 10.4. TC-32: двухшаговый тест — первый preview без бренда (`brand_id_requires_manual=true`, `ready_to_import=false`), затем повторный preview с `brand_id` override → `ready_to_import=true`
+- [x] 10.5. TC-33: двухшаговый тест — первый preview с LLM confidence < 0.7 (`category_requires_manual=true`, `ready_to_import=false`), затем повторный preview с `category_id` override → `ready_to_import=true`
+- [x] 10.6. TC-34: тест полного цикла переноса Ozon→WB — карточка создаётся на WB с полями `description` (из `annotation`), `title`, `vendor_code` (из `offer_id`), `brand` как строкой, `images`, `subjectID`; payload не содержит поле статуса публикации
+- [x] 10.7. TC-35: тест preview WB→Ozon с `mediaFiles=[]` — ответ содержит предупреждение в `warnings`, `ready_to_import=false`
+- [x] 10.8. TC-36: тест обработки сетевых ошибок — FakeWBClient выбрасывает ConnectionError → 502 с кодом `WB_API_UNAVAILABLE`; FakeOzonClient выбрасывает ConnectionError → 502 с кодом `OZON_API_UNAVAILABLE`
 
 ## Кросс-сервисные зависимости
 
