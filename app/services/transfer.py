@@ -42,7 +42,8 @@ class TransferService:
         preview_items: list[TransferPreviewItem] = []
         for product_id in payload.product_ids:
             product = await self.catalog_service.get_product_details(user_id, payload.source_marketplace, product_id)
-            product = self._apply_product_overrides(product, payload.product_overrides.get(product_id) or {})
+            overrides = (payload.product_overrides or {}).get(product_id)
+            product = self._apply_product_overrides(product, overrides)
             if payload.target_category_id is not None:
                 target_category = next((item for item in target_categories if item.id == payload.target_category_id), None)
             else:
@@ -106,9 +107,12 @@ class TransferService:
             items=preview_items,
         )
 
-    def _apply_product_overrides(self, product, overrides: dict) -> object:
+    def _apply_product_overrides(self, product, overrides) -> object:
         if not overrides:
             return product
+        # Support both ProductOverride objects and legacy plain dicts
+        if hasattr(overrides, "model_dump"):
+            overrides = overrides.model_dump()
         normalized = {}
         if overrides.get("price") not in {None, ""}:
             normalized["price"] = str(overrides["price"]).strip()
