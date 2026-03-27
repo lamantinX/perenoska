@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
 from datetime import UTC, datetime
 
 from fastapi import HTTPException, status
 
+from app.clients.base import MarketplaceAPIError
 from app.schemas import (
     JobStatus,
     Marketplace,
+    ProductOverride,
     TransferJobResponse,
     TransferLaunchRequest,
     TransferPreviewItem,
@@ -19,6 +22,8 @@ from app.services.catalog import CatalogService
 from app.services.connections import ConnectionService
 from app.services.container import MarketplaceClientFactory
 from app.services.mapping import MappingService
+
+logger = logging.getLogger(__name__)
 
 
 class TransferService:
@@ -38,21 +43,118 @@ class TransferService:
         self.mapping_service = mapping_service
 
     async def preview(self, user_id: int, payload: TransferPreviewRequest) -> TransferPreviewResponse:
-        target_categories = await self.catalog_service.list_categories(user_id, payload.target_marketplace)
+        # Fetch target categories once (9.3: called once per preview, not cached)
+        try:
+            target_categories = await self.catalog_service.list_categories(user_id, payload.target_marketplace)
+        except MarketplaceAPIError as error:
+            _raise_502(payload.target_marketplace, error)
+
+        # For WB→Ozon brand lookup we need the Ozon client and credentials
+        is_wb_to_ozon = (
+            payload.source_marketplace == Marketplace.WB
+            and payload.target_marketplace == Marketplace.OZON
+        )
+        ozon_client = None
+        ozon_credentials = None
+        if is_wb_to_ozon:
+            ozon_client = self.client_factory.get_client(Marketplace.OZON)
+            ozon_credentials = self.connection_service.get_credentials(user_id, Marketplace.OZON)
+
+        # Convert CategoryNode list to plain dicts for LLM
+        target_categories_dicts = [{"id": c.id, "name": c.name} for c in target_categories]
+
         preview_items: list[TransferPreviewItem] = []
         for product_id in payload.product_ids:
-            product = await self.catalog_service.get_product_details(user_id, payload.source_marketplace, product_id)
-            overrides = (payload.product_overrides or {}).get(product_id)
-            product = self._apply_product_overrides(product, overrides)
-            if payload.target_category_id is not None:
-                target_category = next((item for item in target_categories if item.id == payload.target_category_id), None)
-            else:
-                target_category = self.mapping_service.auto_match_category(product, target_categories)
+            try:
+                product = await self.catalog_service.get_product_details(
+                    user_id, payload.source_marketplace, product_id
+                )
+            except MarketplaceAPIError as error:
+                _raise_502(payload.source_marketplace, error)
+
+            overrides_obj: ProductOverride | None = (payload.product_overrides or {}).get(product_id)
+            product = self._apply_product_overrides(product, overrides_obj)
 
             warnings: list[str] = []
             price_scope_warning = self._wb_price_scope_warning(user_id, payload.source_marketplace, product.price)
             if price_scope_warning:
                 warnings.append(price_scope_warning)
+
+            # --- Category resolution (9.1) ---
+            category_confidence: float | None = None
+            category_requires_manual = False
+            override_category_id = overrides_obj.category_id if overrides_obj else None
+
+            if payload.target_category_id is not None:
+                # Explicit target_category_id on request level
+                target_category = next(
+                    (c for c in target_categories if c.id == payload.target_category_id), None
+                )
+            elif override_category_id is not None:
+                # Category override from product_overrides — skip LLM
+                target_category = next(
+                    (c for c in target_categories if c.id == override_category_id), None
+                )
+            elif self.mapping_service.llm_client:
+                # Use LLM for category matching
+                source_name = product.category_name or product.title or ""
+                matched_dict, confidence = await self.mapping_service.auto_match_category_llm(
+                    source_name, target_categories_dicts
+                )
+                category_confidence = confidence
+                if matched_dict is None or confidence < 0.7:
+                    category_requires_manual = True
+                if matched_dict is not None:
+                    target_category = next(
+                        (c for c in target_categories if c.id == matched_dict["id"]), None
+                    )
+                else:
+                    target_category = None
+            else:
+                # No LLM configured — fall back to SequenceMatcher
+                target_category = self.mapping_service.auto_match_category(product, target_categories)
+
+            # --- Brand resolution (9.2) — WB→Ozon only ---
+            brand_id_suggestion: int | None = None
+            brand_id_requires_manual = False
+            resolved_brand_id: int | None = None
+
+            if is_wb_to_ozon:
+                override_brand_id = overrides_obj.brand_id if overrides_obj else None
+                if override_brand_id is not None:
+                    brand_id_suggestion = override_brand_id
+                    resolved_brand_id = override_brand_id
+                    brand_id_requires_manual = False
+                elif product.brand and ozon_client and ozon_credentials:
+                    try:
+                        found_id, found = await self.mapping_service.find_brand_id(
+                            ozon_credentials, product.brand, ozon_client
+                        )
+                    except MarketplaceAPIError as error:
+                        _raise_502(Marketplace.OZON, error)
+                    brand_id_suggestion = found_id
+                    resolved_brand_id = found_id
+                    brand_id_requires_manual = not found
+                else:
+                    brand_id_requires_manual = True
+
+                # 9.4: Check mediaFiles (WB→Ozon)
+                if not product.images:
+                    warnings.append("У товара нет изображений. Перенос без фото невозможен.")
+                    preview_items.append(
+                        TransferPreviewItem(
+                            product_id=product.id,
+                            title=product.title,
+                            source_category_id=product.category_id,
+                            category_confidence=category_confidence,
+                            category_requires_manual=category_requires_manual,
+                            brand_id_suggestion=brand_id_suggestion,
+                            brand_id_requires_manual=brand_id_requires_manual,
+                            warnings=warnings,
+                        )
+                    )
+                    continue
+
             if target_category is None:
                 warnings.append("Не удалось автоматически определить целевую категорию.")
                 preview_items.append(
@@ -60,6 +162,10 @@ class TransferService:
                         product_id=product.id,
                         title=product.title,
                         source_category_id=product.category_id,
+                        category_confidence=category_confidence,
+                        category_requires_manual=True,
+                        brand_id_suggestion=brand_id_suggestion,
+                        brand_id_requires_manual=brand_id_requires_manual,
                         warnings=warnings,
                     )
                 )
@@ -72,13 +178,20 @@ class TransferService:
                 source_product=product,
                 required_only=True,
             )
-            import_payload, mapped_attributes, missing_required, missing_critical, mapping_warnings = self.mapping_service.build_import_payload(
-                source_product=product,
-                target_category=target_category,
-                target_attributes=target_attributes,
-                target_marketplace=payload.target_marketplace.value,
+            import_payload, mapped_attributes, missing_required, missing_critical, mapping_warnings = (
+                self.mapping_service.build_import_payload(
+                    source_product=product,
+                    target_category=target_category,
+                    target_attributes=target_attributes,
+                    target_marketplace=payload.target_marketplace.value,
+                )
             )
             warnings.extend(mapping_warnings)
+
+            # Inject brand_id into Ozon payload (9.2 / Issue #10 note)
+            if is_wb_to_ozon and resolved_brand_id is not None:
+                import_payload["brand_id"] = resolved_brand_id
+
             preview_items.append(
                 TransferPreviewItem(
                     product_id=product.id,
@@ -86,6 +199,10 @@ class TransferService:
                     source_category_id=product.category_id,
                     target_category_id=target_category.id,
                     target_category_name=target_category.name,
+                    category_confidence=category_confidence,
+                    category_requires_manual=category_requires_manual,
+                    brand_id_suggestion=brand_id_suggestion,
+                    brand_id_requires_manual=brand_id_requires_manual,
                     payload=import_payload,
                     mapped_attributes=mapped_attributes,
                     missing_required_attributes=missing_required,
@@ -94,8 +211,11 @@ class TransferService:
                 )
             )
 
+        # 9.5: ready_to_import = not (any category_requires_manual or brand_id_requires_manual)
         ready = all(
-            item.target_category_id is not None
+            not item.category_requires_manual
+            and not item.brand_id_requires_manual
+            and item.target_category_id is not None
             and not item.missing_required_attributes
             and not item.missing_critical_fields
             for item in preview_items
@@ -153,7 +273,37 @@ class TransferService:
         return int(scope) if isinstance(scope, int) else None
 
     async def launch(self, user_id: int, payload: TransferLaunchRequest) -> TransferJobResponse:
+        # 9.6: Check for manual fields without overrides before running preview
+        overrides = payload.product_overrides or {}
+        for product_id in payload.product_ids:
+            item_override = overrides.get(product_id)
+            # We run preview to get the actual manual flags
+            pass
+
         preview = await self.preview(user_id, payload)
+
+        # 9.6: Check per-item manual flags with specific error messages
+        for item in preview.items:
+            item_override = overrides.get(item.product_id)
+            override_category_id = item_override.category_id if item_override else None
+            override_brand_id = item_override.brand_id if item_override else None
+            if item.category_requires_manual and override_category_id is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        f"Товар {item.product_id}: категория требует ручного выбора. "
+                        "Передайте category_id в product_overrides."
+                    ),
+                )
+            if item.brand_id_requires_manual and override_brand_id is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        f"Товар {item.product_id}: бренд требует ручного выбора. "
+                        "Передайте brand_id в product_overrides."
+                    ),
+                )
+
         if not preview.ready_to_import:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -183,6 +333,8 @@ class TransferService:
                 external_task_id=result.get("external_task_id") or None,
                 result=result,
             )
+        except MarketplaceAPIError as error:
+            _raise_502(payload.target_marketplace, error)
         except Exception as error:
             job = self.database.update_transfer_job(
                 job_id=job["id"],
@@ -256,3 +408,11 @@ class TransferService:
         if isinstance(first, dict):
             return str(first.get("message") or first.get("description") or first.get("code") or "Import error")
         return str(first)
+
+
+def _raise_502(marketplace: Marketplace, error: Exception) -> None:
+    code = "WB_API_UNAVAILABLE" if marketplace == Marketplace.WB else "OZON_API_UNAVAILABLE"
+    raise HTTPException(
+        status_code=502,
+        detail={"code": code, "message": str(error)},
+    )

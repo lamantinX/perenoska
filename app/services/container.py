@@ -39,9 +39,13 @@ class ServiceContainer:
         self.client_factory = MarketplaceClientFactory(settings)
         self.connection_service = ConnectionService(self.database, self.vault)
         self.auth_service = AuthService(self.database, self.password_manager, settings.session_ttl_hours)
-        self.llm_client = AsyncOpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=settings.openrouter_api_key,
+        self.llm_client = (
+            AsyncOpenAI(
+                base_url="https://openrouter.ai/api/v1",
+                api_key=settings.openrouter_api_key,
+            )
+            if settings.openrouter_api_key
+            else None
         )
         self.mapping_service = MappingService(
             llm_client=self.llm_client,
