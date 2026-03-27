@@ -28,9 +28,9 @@ milestone: v1.0.0
 - **Type:** infra
 
 Подзадачи:
-- [ ] 1.1. Добавить `openai>=1.0` в секцию `[project] dependencies` в `pyproject.toml`
-- [ ] 1.2. Добавить `pytest-mock>=3.14` в секцию `[project.optional-dependencies] dev` в `pyproject.toml`
-- [ ] 1.3. Проверить установку зависимостей: `pip install -e .[dev]` без ошибок
+- [x] 1.1. Добавить `openai>=1.0` в секцию `[project] dependencies` в `pyproject.toml`
+- [x] 1.2. Добавить `pytest-mock>=3.14` в секцию `[project.optional-dependencies] dev` в `pyproject.toml`
+- [x] 1.3. Проверить установку зависимостей: `pip install -e .[dev]` без ошибок
 
 #### TASK-2: Расширить app/config.py — добавить поля LLM-конфигурации в Settings
 - **Сложность:** 2/10
@@ -42,9 +42,9 @@ milestone: v1.0.0
 - **Type:** infra
 
 Подзадачи:
-- [ ] 2.1. Добавить поле `openrouter_api_key: str` в `Settings` (env `OPENROUTER_API_KEY`, default `""`)
-- [ ] 2.2. Добавить поле `llm_model: str` в `Settings` (env `LLM_MODEL`, default `mistralai/mistral-7b-instruct:free`)
-- [ ] 2.3. Обновить `Settings.from_env()` — считывать `OPENROUTER_API_KEY` и `LLM_MODEL` через `os.getenv`
+- [x] 2.1. Добавить поле `openrouter_api_key: str` в `Settings` (env `OPENROUTER_API_KEY`, default `""`)
+- [x] 2.2. Добавить поле `llm_model: str` в `Settings` (env `LLM_MODEL`, default `mistralai/mistral-7b-instruct:free`)
+- [x] 2.3. Обновить `Settings.from_env()` — считывать `OPENROUTER_API_KEY` и `LLM_MODEL` через `os.getenv`
 
 #### TASK-3: Обновить app/services/container.py — инициализировать AsyncOpenAI и передать в MappingService
 - **Сложность:** 3/10
