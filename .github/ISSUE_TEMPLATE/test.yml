@@ -1,0 +1,76 @@
+name: Тесты
+description: E2E, integration, load, smoke тесты
+title: "[Test]: "
+labels:
+  - test
+body:
+  - type: textarea
+    id: task-description
+    attributes:
+      label: Описание задачи
+      description: "Какие тесты нужно написать и ЗАЧЕМ"
+      placeholder: |
+        Написать E2E тесты для потока авторизации: логин → дашборд → логаут.
+        Покрыть критический путь пользователя для CI/CD.
+
+        **Сервис:** frontend + auth
+    validations:
+      required: true
+
+  - type: textarea
+    id: documents
+    attributes:
+      label: Документы для изучения
+      description: "Документы для понимания контекста. Формат: таблица | # | Документ | Путь | Что искать |"
+      placeholder: |
+        | # | Документ | Путь | Что искать |
+        |---|----------|------|-----------|
+        | 1 | Тестирование | specs/docs/.system/testing.md | Стратегия, мокирование |
+        | 2 | Plan Test | specs/analysis/0001-.../plan-test.md | TC-N сценарии |
+    validations:
+      required: true
+
+  - type: textarea
+    id: assignment
+    attributes:
+      label: Задание
+      description: "Пошаговые инструкции: какие тесты написать"
+      placeholder: |
+        1. **Создай** `tests/e2e/auth.spec.ts` — E2E тесты авторизации.
+        2. **Покрой сценарии** TC-28 (логин), TC-29 (ошибка 401), TC-30 (редирект).
+        3. **Настрой** fixtures и mocks.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Критерии готовности
+      description: "Как проверить результат. Ссылка на Plan Test + TC-N"
+      placeholder: |
+        - [ ] Тесты проходят локально
+        - [ ] Покрыты все TC-N сценарии
+        - [ ] CI pipeline проходит
+    validations:
+      required: true
+
+  - type: textarea
+    id: practical-context
+    attributes:
+      label: Практический контекст
+      description: "Тестовое окружение, команды запуска"
+      placeholder: |
+        **Существующие тесты:** tests/e2e/ содержит: setup.ts, utils.ts
+        **Как запустить:** make test-e2e
+        **Как проверить:** npm run test:e2e -- --reporter=verbose
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: subtasks
+    attributes:
+      label: Подзадачи
+      description: Разбейте задачу на части, если возможно
+      options:
+        - label: Подзадача 1
+        - label: Подзадача 2

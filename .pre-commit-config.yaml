@@ -1,0 +1,286 @@
+# Pre-commit hooks configuration
+# https://pre-commit.com/
+#
+# Установка:
+#   make setup
+#   # или: pip install pre-commit && pre-commit install
+#
+# Ручной запуск:
+#   pre-commit run --all-files
+
+repos:
+  - repo: local
+    hooks:
+      # 1. Проверка синхронизации структуры README
+      - id: structure-sync
+        name: Check README structure sync
+        entry: python .structure/.instructions/.scripts/pre-commit-structure.py
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+
+      # 2. Валидация rules
+      - id: rules-validate
+        name: Validate rules format
+        entry: python .claude/.instructions/rules/.scripts/validate-rule.py
+        language: system
+        files: ^\.claude/rules/.*\.md$
+        exclude: ^\.claude/rules/_old-.*\.md$
+        pass_filenames: true
+        require_serial: true
+        stages: [pre-commit]
+
+      # 3. Валидация скриптов
+      - id: scripts-validate
+        name: Validate scripts format
+        entry: python .instructions/.scripts/validate-script.py
+        language: system
+        files: ^\.instructions/\.scripts/.*\.py$
+        pass_filenames: true
+        require_serial: true
+        stages: [pre-commit]
+
+      # 4. Валидация скиллов
+      - id: skills-validate
+        name: Validate skills format
+        entry: python .claude/.instructions/skills/.scripts/validate-skill.py
+        language: system
+        files: ^\.claude/skills/.*/SKILL\.md$
+        pass_filenames: true
+        require_serial: true
+        stages: [pre-commit]
+
+      # 5. Валидация PR template
+      - id: pr-template-validate
+        name: Validate PR template
+        entry: python .github/.instructions/.scripts/validate-pr-template.py
+        language: system
+        files: ^\.github/PULL_REQUEST_TEMPLATE\.md$
+        pass_filenames: false
+        stages: [pre-commit]
+
+      # 6. Валидация CODEOWNERS
+      - id: codeowners-validate
+        name: Validate CODEOWNERS
+        entry: python .github/.instructions/.scripts/validate-codeowners.py
+        language: system
+        files: ^\.github/CODEOWNERS$
+        pass_filenames: false
+        stages: [pre-commit]
+
+      # 7. Валидация соответствия type:* и Issue Templates
+      - id: type-templates-validate
+        name: Validate type:* ↔ Issue Templates
+        entry: python .github/.instructions/.scripts/validate-type-templates.py
+        language: system
+        files: ^\.github/(labels\.yml|ISSUE_TEMPLATE/.*\.yml)$
+        pass_filenames: false
+        stages: [pre-commit]
+
+      # 9. Валидация GitHub Actions workflows
+      - id: actions-validate
+        name: Validate GitHub Actions workflows
+        entry: python .github/.instructions/.scripts/validate-action.py
+        language: system
+        files: ^\.github/workflows/.*\.ya?ml$
+        pass_filenames: true
+        require_serial: true
+        stages: [pre-commit]
+
+      # 10. Валидация файлов безопасности GitHub
+      - id: security-validate
+        name: Validate GitHub security files
+        entry: python .github/.instructions/.scripts/validate-security.py
+        language: system
+        files: ^\.github/(dependabot\.yml|SECURITY\.md|workflows/codeql\.yml)$
+        pass_filenames: true
+        require_serial: true
+        stages: [pre-commit]
+
+      # 11. Валидация имени ветки
+      - id: branch-validate
+        name: Validate branch name
+        entry: python .github/.instructions/.scripts/validate-branch-name.py
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+
+      # 12. Проверка наличия обязательных файлов GitHub
+      - id: github-required
+        name: Check GitHub required files
+        entry: python .github/.instructions/.scripts/check-github-required.py
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+
+      # 13. Валидация структуры docs/
+      - id: docs-validate
+        name: Validate docs/ structure
+        entry: python specs/.instructions/.scripts/validate-docs.py
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+
+      # 14. Валидация docs/README.md
+      - id: docs-readme-validate
+        name: Validate docs/README.md
+        entry: python specs/.instructions/.scripts/validate-docs-readme.py
+        language: system
+        files: ^specs/docs/
+        pass_filenames: false
+        stages: [pre-commit]
+
+      # 15. Валидация docs/.system/overview.md
+      - id: overview-validate
+        name: Validate overview.md
+        entry: python specs/.instructions/.scripts/validate-docs-overview.py
+        language: system
+        files: ^specs/docs/\.system/overview\.md$
+        pass_filenames: false
+        stages: [pre-commit]
+
+      # 16. Валидация docs/.system/conventions.md
+      - id: conventions-validate
+        name: Validate conventions.md
+        entry: python specs/.instructions/.scripts/validate-docs-conventions.py
+        language: system
+        files: ^specs/docs/\.system/conventions\.md$
+        pass_filenames: false
+        stages: [pre-commit]
+
+      # 17. Валидация docs/.system/infrastructure.md
+      - id: infrastructure-validate
+        name: Validate infrastructure.md
+        entry: python specs/.instructions/.scripts/validate-docs-infrastructure.py
+        language: system
+        files: ^specs/docs/\.system/infrastructure\.md$
+        pass_filenames: false
+        stages: [pre-commit]
+
+      # 18. Валидация docs/.system/testing.md
+      - id: testing-validate
+        name: Validate testing.md
+        entry: python specs/.instructions/.scripts/validate-docs-testing.py
+        language: system
+        files: ^specs/docs/\.system/testing\.md$
+        pass_filenames: false
+        stages: [pre-commit]
+
+      # 19. Валидация docs/{svc}.md
+      - id: service-validate
+        name: Validate service docs
+        entry: python specs/.instructions/.scripts/validate-docs-service.py
+        language: system
+        files: ^specs/docs/[^/]+\.md$
+        exclude: ^specs/docs/README\.md$
+        pass_filenames: true
+        require_serial: true
+        stages: [pre-commit]
+
+      # 20. Синхронизация docs/README.md с деревом сервисов
+      - id: service-readme-validate
+        name: Validate docs/README.md services sync
+        entry: python specs/.instructions/.scripts/validate-docs-readme-services.py
+        language: system
+        files: ^specs/docs/
+        pass_filenames: false
+        stages: [pre-commit]
+
+      # 21. Валидация docs/.technologies/standard-{tech}.md
+      - id: technology-validate
+        name: Validate technology standards
+        entry: python specs/.instructions/.scripts/validate-docs-technology.py
+        language: system
+        files: ^specs/docs/\.technologies/standard-.*\.md$
+        exclude: ^specs/docs/\.technologies/standard-example\.md$
+        pass_filenames: true
+        require_serial: true
+        stages: [pre-commit]
+
+      # 22. Валидация analysis/*/design.md
+      - id: design-validate
+        name: Validate design documents
+        entry: python specs/.instructions/.scripts/validate-analysis-design.py
+        language: system
+        files: ^specs/analysis/.*/design\.md$
+        pass_filenames: true
+        require_serial: true
+        stages: [pre-commit]
+
+      # 23. Валидация analysis/*/plan-test.md
+      - id: plan-test-validate
+        name: Validate plan-test documents
+        entry: python specs/.instructions/.scripts/validate-analysis-plan-test.py
+        language: system
+        files: ^specs/analysis/.*/plan-test\.md$
+        pass_filenames: true
+        require_serial: true
+        stages: [pre-commit]
+
+      # 24. Валидация analysis/*/plan-dev.md
+      - id: plan-dev-validate
+        name: Validate plan-dev documents
+        entry: python specs/.instructions/.scripts/validate-analysis-plan-dev.py
+        language: system
+        files: ^specs/analysis/.*/plan-dev\.md$
+        pass_filenames: true
+        require_serial: true
+        stages: [pre-commit]
+
+      # 25. Валидация analysis/*/discussion.md
+      - id: discussion-validate
+        name: Validate discussion documents
+        entry: python specs/.instructions/.scripts/validate-analysis-discussion.py
+        language: system
+        files: ^specs/analysis/.*/discussion\.md$
+        pass_filenames: true
+        require_serial: true
+        stages: [pre-commit]
+
+      # 26. Валидация analysis/*/review.md
+      - id: review-validate
+        name: Validate review documents
+        entry: python .github/.instructions/.scripts/validate-review.py
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+
+      # 27. Валидация формата commit message
+      - id: validate-commit-msg
+        name: Validate commit message format
+        entry: python .github/.instructions/commits/.scripts/validate-commit-msg.py
+        language: system
+        always_run: true
+        stages: [commit-msg]
+
+      # 28. Валидация docs/.technologies/security-{tech}.md
+      - id: security-technology-validate
+        name: Validate security technology standards
+        entry: python specs/.instructions/.scripts/validate-docs-technology.py
+        language: system
+        files: ^specs/docs/\.technologies/security-.*\.md$
+        pass_filenames: true
+        require_serial: true
+        stages: [pre-commit]
+
+      # 29. Валидация deploy.yml
+      - id: deploy-validate
+        name: Validate deploy workflow
+        entry: python .github/.instructions/.scripts/validate-deploy.py
+        language: system
+        files: ^\.github/workflows/deploy\.yml$
+        pass_filenames: false
+        stages: [pre-commit]
+
+  # 30. Обнаружение секретов (gitleaks)
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+        name: Detect secrets (gitleaks)
+        stages: [pre-commit]

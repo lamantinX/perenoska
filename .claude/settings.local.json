@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh repo:*)",
+      "Bash(curl -s https://api.github.com/repos/NSEvteev/FullSpec)",
+      "Bash(gh api:*)",
+      "Bash(PROJECT=\"C:/Users/zelen/OneDrive/Рабочий стол/projects/perenoska\" echo \"=== .claude/ ===\")",
+      "Read(//c/Users/zelen/OneDrive/Рабочий стол/projects/perenoska/$PROJECT/**)",
+      "Read(//c/Users/zelen/OneDrive/Рабочий стол/projects/perenoska/$PROJECT/.claude/**)",
+      "Read(//c/Users/zelen/OneDrive/Рабочий стол/projects/perenoska/**)",
+      "Bash(pip install:*)",
+      "Bash(pre-commit install:*)",
+      "Bash(python -m pre_commit install)",
+      "Bash(python -m pre_commit install --hook-type commit-msg)",
+      "Bash(taskkill /F /IM python.exe /T)",
+      "Bash(taskkill //F //IM python.exe //T)",
+      "Bash(SKIP=gitleaks python -m pre_commit run --all-files)",
+      "Skill(discussion-create)",
+      "Skill(discussion-create:*)",
+      "Skill(design-create)",
+      "Skill(design-create:*)",
+      "Skill(plan-dev-create)",
+      "Skill(plan-dev-create:*)",
+      "Skill(review-create)",
+      "Skill(review-create:*)",
+      "Skill(docs-sync)",
+      "Skill(docs-sync:*)",
+      "Skill(milestone-create)",
+      "Skill(milestone-create:*)",
+      "Bash(find 'C:\\\\Users\\\\zelen\\\\OneDrive\\\\Рабочий стол\\\\projects\\\\perenoska' -name *dev-create*)"
+    ]
+  }
+}

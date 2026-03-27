@@ -1,0 +1,75 @@
+name: Задача
+description: Техническая задача или улучшение
+title: "[Task]: "
+labels:
+  - task
+body:
+  - type: textarea
+    id: task-description
+    attributes:
+      label: Описание задачи
+      description: "ЧТО нужно сделать и ЗАЧЕМ. 2-3 предложения + метаданные (сервис, зависимости)"
+      placeholder: |
+        Реализовать компонент X для сервиса Y.
+        Это часть функциональности Z — после реализации пользователь сможет...
+
+        **Сервис:** frontend
+        **Зависит от:** #55 (API-слой) — ДОЛЖЕН быть готов.
+    validations:
+      required: true
+
+  - type: textarea
+    id: documents
+    attributes:
+      label: Документы для изучения
+      description: "Документы для изучения перед началом работы. Формат: таблица | # | Документ | Путь | Что искать |"
+      placeholder: |
+        | # | Документ | Путь | Что искать |
+        |---|----------|------|-----------|
+        | 1 | Сервисная документация | specs/docs/frontend.md | Code Map, структура |
+    validations:
+      required: true
+
+  - type: textarea
+    id: assignment
+    attributes:
+      label: Задание
+      description: "Пошаговые инструкции ЧТО ИМЕННО сделать"
+      placeholder: |
+        1. **Создай `src/.../file.ts`** — описание.
+        2. **Обнови `src/.../App.tsx`** — что изменить.
+        3. **Напиши тесты** — по TC-N из Plan Test.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Критерии готовности
+      description: "Как проверить результат. Для Plan Dev — ссылка на Plan Test + TC-N"
+      placeholder: |
+        - [ ] Компонент работает корректно
+        - [ ] Тесты покрывают основные сценарии
+    validations:
+      required: true
+
+  - type: textarea
+    id: practical-context
+    attributes:
+      label: Практический контекст
+      description: "Существующий код, экспорты зависимостей, команды запуска"
+      placeholder: |
+        **Существующий код:** src/frontend/ содержит: App.tsx, main.tsx
+        **Как запустить:** make dev → http://localhost:3000
+        **Как проверить:** cd src/frontend && npm test
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: subtasks
+    attributes:
+      label: Подзадачи
+      description: Разбейте задачу на части, если возможно
+      options:
+        - label: Подзадача 1
+        - label: Подзадача 2

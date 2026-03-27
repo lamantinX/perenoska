@@ -1,0 +1,33 @@
+# Default: exclude everything
+**
+
+# Include application source
+!app/**
+!src/perenoska/**
+!pyproject.toml
+!README.md
+
+# Exclude Python artifacts
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.pytest_cache/
+**/.ruff_cache/
+**/*.egg-info/
+
+# Exclude local data and secrets
+data/
+.env
+.env.*
+!.env.example
+
+# Exclude dev/tooling
+.venv/
+.git/
+.github/
+.claude/
+.instructions/
+specs/
+tests/
+Makefile

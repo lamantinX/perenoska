@@ -1,0 +1,47 @@
+{
+  "language": "russian",
+  "plansDirectory": "./.claude/drafts",
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Bash(cd:*)",
+      "Bash(ls:*)",
+      "Bash(tree:*)",
+      "Bash(mkdir:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git branch:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git stash:*)",
+      "Bash(git fetch:*)",
+      "Bash(git checkout:*)",
+      "Bash(git merge:*)",
+      "Bash(git rebase:*)",
+      "Bash(git reset:*)",
+      "Bash(git restore:*)",
+      "Bash(git show:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(gh:*)",
+      "Bash(python:*)",
+      "Bash(make:*)",
+      "Bash(npm:*)",
+      "Bash(pnpm:*)",
+      "Bash(node:*)",
+      "Bash(docker:*)",
+      "Bash(docker-compose:*)",
+      "Bash(rm:*)",
+      "Bash(pip:*)",
+      "Bash(uvicorn:*)",
+      "Bash(pytest:*)",
+      "WebSearch",
+      "Edit",
+      "Write"
+    ],
+    "deny": [
+      "Bash(> /dev/sda:*)"
+    ]
+  }
+}

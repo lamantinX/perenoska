@@ -1,0 +1,74 @@
+name: Документация
+description: Сообщить о проблеме в документации или предложить улучшение
+title: "[Docs]: "
+labels:
+  - docs
+  - low
+body:
+  - type: textarea
+    id: task-description
+    attributes:
+      label: Описание задачи
+      description: "Какая проблема в документации и ЗАЧЕМ нужно исправить"
+      placeholder: |
+        В инструкции по установке не хватает шага настройки pre-commit хуков.
+        Без этого шага новые разработчики пропускают make setup.
+
+        **Файл:** README.md, раздел "Установка"
+    validations:
+      required: true
+
+  - type: textarea
+    id: documents
+    attributes:
+      label: Документы для изучения
+      description: "Документы для понимания контекста. Формат: таблица | # | Документ | Путь | Что искать |"
+      placeholder: |
+        | # | Документ | Путь | Что искать |
+        |---|----------|------|-----------|
+        | 1 | Целевой документ | README.md | Раздел "Установка" |
+    validations:
+      required: true
+
+  - type: textarea
+    id: assignment
+    attributes:
+      label: Задание
+      description: "Пошаговые инструкции: что именно изменить в документации"
+      placeholder: |
+        1. **Открой** `README.md`, раздел "Установка".
+        2. **Добавь** шаг "Выполни `make setup`" после клонирования.
+        3. **Проверь** ссылки на связанные документы.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Критерии готовности
+      description: "Как проверить что документация исправлена"
+      placeholder: |
+        - [ ] Информация корректна и актуальна
+        - [ ] Ссылки работают
+        - [ ] Нет опечаток
+    validations:
+      required: true
+
+  - type: textarea
+    id: practical-context
+    attributes:
+      label: Практический контекст
+      description: "Где находится документ, как проверить изменения"
+      placeholder: |
+        **Файл:** README.md, строка ~45
+        **Как проверить:** прочитать раздел — инструкция должна быть понятна новому разработчику
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Чек-лист
+      options:
+        - label: Я проверил, что это не дубликат
+          required: true

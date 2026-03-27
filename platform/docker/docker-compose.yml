@@ -1,0 +1,32 @@
+version: "3.9"
+
+services:
+
+  perenoska:
+    build:
+      context: ../..
+      dockerfile: src/perenoska/Dockerfile
+    container_name: perenoska
+    restart: unless-stopped
+    ports:
+      - "${PERENOSKA_PORT:-8000}:8000"
+    environment:
+      APP_SECRET_KEY: ${APP_SECRET_KEY}
+      APP_DATABASE_PATH: ${APP_DATABASE_PATH:-/app/data/perenositsa.db}
+      APP_SESSION_TTL_HOURS: ${APP_SESSION_TTL_HOURS:-24}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      LLM_MODEL: ${LLM_MODEL:-mistralai/mistral-7b-instruct:free}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://openrouter.ai/api/v1}
+    volumes:
+      - perenoska_data:/app/data
+      # Dev mode: mount source for hot-reload
+      # - ../../app:/app/app
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+
+volumes:
+  perenoska_data:

@@ -1,0 +1,78 @@
+name: Рефакторинг
+description: Предложить рефакторинг кода без изменения функциональности
+title: "[Refactor]: "
+labels:
+  - refactor
+body:
+  - type: textarea
+    id: task-description
+    attributes:
+      label: Описание задачи
+      description: "Текущее состояние, предлагаемые изменения, мотивация (ЗАЧЕМ)"
+      placeholder: |
+        Отрефакторить модуль обработки ошибок: вынести общую логику в middleware.
+        Текущая реализация дублирует try/catch в каждом контроллере.
+        Это улучшит поддерживаемость и уменьшит дублирование.
+
+        **Сервис:** api-gateway
+    validations:
+      required: true
+
+  - type: textarea
+    id: documents
+    attributes:
+      label: Документы для изучения
+      description: "Документы для понимания контекста. Формат: таблица | # | Документ | Путь | Что искать |"
+      placeholder: |
+        | # | Документ | Путь | Что искать |
+        |---|----------|------|-----------|
+        | 1 | Конвенции | specs/docs/.system/conventions.md | Формат ошибок, middleware |
+        | 2 | Сервисная документация | specs/docs/api-gateway.md | Code Map, обработка ошибок |
+    validations:
+      required: true
+
+  - type: textarea
+    id: assignment
+    attributes:
+      label: Задание
+      description: "Пошаговые инструкции: что именно отрефакторить"
+      placeholder: |
+        1. **Создай** `src/.../middleware/errorHandler.ts` — общий обработчик ошибок.
+        2. **Замени** try/catch в контроллерах на middleware.
+        3. **Напиши тесты** — убедись что поведение не изменилось.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Критерии готовности
+      description: "Как проверить результат рефакторинга"
+      placeholder: |
+        - [ ] Функциональность не изменилась
+        - [ ] Тесты проходят
+        - [ ] Дублирование устранено
+    validations:
+      required: true
+
+  - type: textarea
+    id: practical-context
+    attributes:
+      label: Практический контекст
+      description: "Затронутые файлы, команды запуска, как убедиться что ничего не сломалось"
+      placeholder: |
+        **Затронутые файлы:** src/api-gateway/controllers/*.ts (5 файлов)
+        **Как запустить:** make dev
+        **Как проверить:** cd src/api-gateway && npm test
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Чек-лист
+      options:
+        - label: Этот рефакторинг не меняет функциональность
+          required: true
+        - label: Я учёл влияние на существующие тесты
+          required: true
