@@ -1,10 +1,17 @@
 from __future__ import annotations
 
+import json
+import logging
 import re
 from difflib import SequenceMatcher
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+logger = logging.getLogger(__name__)
 
 from app.schemas import CategoryAttribute, CategoryNode, ProductDetails
+
+if TYPE_CHECKING:
+    from openai import AsyncOpenAI
 
 
 class MappingService:
@@ -17,6 +24,10 @@ class MappingService:
         "страна производства": ["country", "страна производства", "страна изготовитель"],
         "состав": ["composition", "состав"],
     }
+
+    def __init__(self, llm_client: "AsyncOpenAI | None" = None, llm_model: str = "") -> None:
+        self.llm_client = llm_client
+        self.llm_model = llm_model
 
     def auto_match_category(
         self,
@@ -34,6 +45,87 @@ class MappingService:
                 best_score = score
                 best_match = category
         return best_match if best_score >= 0.6 else None
+
+    async def auto_match_category_llm(
+        self,
+        source_category_name: str,
+        target_categories: list[dict[str, Any]],
+    ) -> tuple[dict[str, Any] | None, float]:
+        """Match source category to target using LLM (OpenRouter).
+
+        Returns (category_dict | None, confidence).
+        confidence < 0.7 signals category_requires_manual=True for the caller.
+        Returns (None, 0.0) when LLM response is invalid or category_id not in catalogue.
+        """
+        if not self.llm_client:
+            return None, 0.0
+
+        # Limit to 50 leaf categories to keep prompt short
+        candidates = target_categories[:50]
+        prompt = (
+            f"Source category: {source_category_name}\n"
+            f"Target categories: {json.dumps(candidates, ensure_ascii=False)}\n"
+            'Return JSON: {"category_id": <int>, "confidence": <0.0..1.0>}'
+        )
+        try:
+            response = await self.llm_client.chat.completions.create(
+                model=self.llm_model,
+                messages=[{"role": "user", "content": prompt}],
+                response_format={"type": "json_object"},
+                temperature=0.1,
+                max_tokens=128,
+            )
+            content = response.choices[0].message.content or ""
+            data = json.loads(content)
+            category_id = int(data["category_id"])
+            confidence = float(data["confidence"])
+        except (json.JSONDecodeError, KeyError, ValueError, TypeError) as exc:
+            logger.warning("llm.parse_error model=%s error=%s", self.llm_model, exc)
+            return None, 0.0
+        except Exception as exc:
+            logger.error("llm.request_failed model=%s error=%s", self.llm_model, exc)
+            return None, 0.0
+
+        # Validate category_id against the catalogue
+        matching = next((c for c in target_categories if c["id"] == category_id), None)
+        if matching is None:
+            return None, 0.0
+
+        return matching, confidence
+
+    async def find_brand_id(
+        self,
+        credentials: dict[str, Any],
+        brand_name: str,
+        ozon_client: Any,
+    ) -> tuple[int | None, bool]:
+        """Find brand_id in Ozon catalogue using three-level matching.
+
+        1. Exact (case-sensitive)
+        2. Case-insensitive
+        3. Substring
+        Returns (brand_id, True) on any match, (None, False) otherwise.
+        """
+        brands = await ozon_client.list_brands(credentials, query=brand_name)
+
+        # Level 1: exact case-sensitive
+        for entry in brands:
+            if entry.get("name") == brand_name:
+                return entry["id"], True
+
+        # Level 2: case-insensitive
+        brand_name_lower = brand_name.lower()
+        for entry in brands:
+            if entry.get("name", "").lower() == brand_name_lower:
+                return entry["id"], True
+
+        # Level 3: substring
+        for entry in brands:
+            entry_name_lower = entry.get("name", "").lower()
+            if brand_name_lower in entry_name_lower or entry_name_lower in brand_name_lower:
+                return entry["id"], True
+
+        return None, False
 
     def build_import_payload(
         self,
@@ -79,7 +171,6 @@ class MappingService:
             barcode = source_product.barcode_list[0] if source_product.barcode_list else None
             stock = source_product.stock if source_product.stock is not None else 0
             resolved_type_id = self._resolve_ozon_type_id(target_category)
-            resolved_type_name = self._resolve_ozon_type_name(target_category)
             if not source_product.offer_id:
                 missing_critical.append("offer_id")
             if not source_product.title:
@@ -89,13 +180,14 @@ class MappingService:
             if not resolved_type_id:
                 missing_critical.append("type_id")
             if not source_product.images:
+                missing_critical.append("images")
                 warnings.append("У товара нет изображений для Ozon.")
             if not barcode:
                 warnings.append("У товара нет штрихкода; для Ozon это нежелательно.")
             payload = {
                 "offer_id": self._sanitize_offer_id(source_product.offer_id or source_product.id),
                 "name": self._sanitize_ozon_name(source_product.title),
-                "description": source_product.description or "",
+                "annotation": source_product.description or "",
                 "description_category_id": target_category.id,
                 "type_id": int(resolved_type_id) if resolved_type_id else 0,
                 "attributes": [self._ozon_attribute_payload(attribute, mapped_value) for attribute, mapped_value in payload_attributes],
