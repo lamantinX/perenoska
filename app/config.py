@@ -14,6 +14,8 @@ class Settings:
     wb_base_url: str
     ozon_base_url: str
     http_timeout_seconds: float
+    openrouter_api_key: str = ""
+    llm_model: str = "mistralai/mistral-7b-instruct:free"
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -26,5 +28,7 @@ class Settings:
             wb_base_url=os.getenv("WB_BASE_URL", "https://content-api.wildberries.ru").rstrip("/"),
             ozon_base_url=os.getenv("OZON_BASE_URL", "https://api-seller.ozon.ru").rstrip("/"),
             http_timeout_seconds=float(os.getenv("HTTP_TIMEOUT_SECONDS", "30")),
+            openrouter_api_key=os.getenv("OPENROUTER_API_KEY", ""),
+            llm_model=os.getenv("LLM_MODEL", "mistralai/mistral-7b-instruct:free"),
         )
 
