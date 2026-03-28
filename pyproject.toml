@@ -7,7 +7,7 @@ name = "perenositsa"
 version = "0.1.0"
 description = "MVP веб-сервиса переноса карточек товаров между Wildberries и Ozon."
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 dependencies = [
   "cryptography>=45.0.0",
   "fastapi>=0.116.0",
