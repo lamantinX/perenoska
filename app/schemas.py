@@ -112,7 +112,7 @@ class TransferPreviewRequest(BaseModel):
     target_marketplace: Marketplace
     product_ids: list[str] = Field(min_length=1)
     target_category_id: int | None = None
-    product_overrides: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    product_overrides: dict[str, ProductOverride] | None = None
 
     @model_validator(mode="after")
     def validate_direction(self) -> "TransferPreviewRequest":
@@ -121,12 +121,24 @@ class TransferPreviewRequest(BaseModel):
         return self
 
 
+class ProductOverride(BaseModel):
+    category_id: int | None = None
+    brand_id: int | None = None
+    price: str | None = None
+    # attributes override is reserved for future use; not applied in _apply_product_overrides yet
+    attributes: list[dict[str, Any]] | None = None
+
+
 class TransferPreviewItem(BaseModel):
     product_id: str
     title: str
     source_category_id: int | None = None
     target_category_id: int | None = None
     target_category_name: str | None = None
+    category_confidence: float | None = None
+    category_requires_manual: bool = False
+    brand_id_suggestion: int | None = None
+    brand_id_requires_manual: bool = False
     payload: dict[str, Any] = Field(default_factory=dict)
     mapped_attributes: dict[str, Any] = Field(default_factory=dict)
     missing_required_attributes: list[str] = Field(default_factory=list)

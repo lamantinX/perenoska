@@ -5,7 +5,7 @@ standard-version: v1.4
 index: specs/analysis/README.md
 parent: design.md
 children: [plan-dev.md]
-status: RUNNING
+status: DONE
 milestone: v1.0.0
 ---
 

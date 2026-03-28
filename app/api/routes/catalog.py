@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query
+from typing import Any
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.api.deps import get_catalog_service, get_current_user
+from app.clients.base import MarketplaceAPIError
 from app.schemas import CategoryAttribute, CategoryNode, Marketplace, ProductDetails, ProductSummary
 
 router = APIRouter(prefix="/catalog", tags=["catalog"])
@@ -47,4 +50,24 @@ async def get_category_attributes(
     catalog_service=Depends(get_catalog_service),
 ) -> list[CategoryAttribute]:
     return await catalog_service.get_category_attributes(user["id"], marketplace, category_id, required_only)
+
+
+@router.get("/{marketplace}/brands")
+async def list_brands(
+    marketplace: str,
+    q: str,
+    limit: int = Query(default=20, le=100),
+    user=Depends(get_current_user),
+    catalog_service=Depends(get_catalog_service),
+) -> dict[str, Any]:
+    if marketplace != "ozon":
+        raise HTTPException(status_code=400, detail="Only ozon marketplace supports brand search")
+    try:
+        items = await catalog_service.list_brands(user["id"], Marketplace.OZON, query=q, limit=limit)
+    except MarketplaceAPIError as error:
+        raise HTTPException(
+            status_code=502,
+            detail={"code": "OZON_API_UNAVAILABLE", "message": str(error)},
+        ) from error
+    return {"items": items, "total": len(items)}
 

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from openai import AsyncOpenAI
+
 from app.clients.base import MarketplaceClient
 from app.clients.ozon import OzonClient
 from app.clients.wb import WBClient
@@ -37,5 +39,16 @@ class ServiceContainer:
         self.client_factory = MarketplaceClientFactory(settings)
         self.connection_service = ConnectionService(self.database, self.vault)
         self.auth_service = AuthService(self.database, self.password_manager, settings.session_ttl_hours)
-        self.mapping_service = MappingService()
+        self.llm_client = (
+            AsyncOpenAI(
+                base_url="https://openrouter.ai/api/v1",
+                api_key=settings.openrouter_api_key,
+            )
+            if settings.openrouter_api_key
+            else None
+        )
+        self.mapping_service = MappingService(
+            llm_client=self.llm_client,
+            llm_model=settings.llm_model,
+        )
 

@@ -61,3 +61,8 @@ class CatalogService:
                 required_only=required_only,
             )
         return await client.get_category_attributes(credentials, category.id, required_only=required_only)
+
+    async def list_brands(self, user_id: int, marketplace: Marketplace, query: str, limit: int = 20) -> list[dict]:
+        credentials = self.connection_service.get_credentials(user_id, marketplace)
+        client = self.client_factory.get_client(marketplace)
+        return await client.list_brands(credentials, query=query, limit=limit)

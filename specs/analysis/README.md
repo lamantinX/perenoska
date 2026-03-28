@@ -41,7 +41,7 @@ index: specs/README.md
 
 | ID | Тема | Статус | Design | Milestone | Описание |
 |----|------|--------|--------|-----------|----------|
-| 0002 | wb-ozon-product-transfer | RUNNING | design.md | v1.0.0 | Корректный перенос карточек товаров WB↔Ozon |
+| 0002 | wb-ozon-product-transfer | DONE | design.md | v1.0.0 | Корректный перенос карточек товаров WB↔Ozon |
 
 ---
 
@@ -50,7 +50,7 @@ index: specs/README.md
 <!-- BEGIN:analysis-status -->
 | NNNN | Тема | Disc | Design | P.Test | P.Dev | Review | Branch | Milestone |
 |------|------|------|--------|--------|-------|--------|--------|-----------|
-| 0002 | wb-ozon-product-transfer | R | R | R | R | OP | 0002-wb-ozon-product-transfer | v1.0.0 |
+| 0002 | wb-ozon-product-transfer | DN | DN | DN | DN | RS | 0002-wb-ozon-product-transfer | v1.0.0 |
 <!-- END:analysis-status -->
 
 *Обновляется через `/analysis-status --update`*

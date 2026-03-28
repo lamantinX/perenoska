@@ -87,6 +87,9 @@ class FakeOzonClient(MarketplaceClient):
             CategoryAttribute(id=2, name="Material", required=False),
         ]
 
+    async def list_brands(self, credentials, query: str, limit: int = 100):
+        return [{"id": 1000, "name": query}]
+
     async def create_products(self, credentials, items):
         return {"external_task_id": "ozon-task-1", "raw_response": {"result": {"task_id": "ozon-task-1"}}}
 
