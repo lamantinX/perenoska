@@ -60,8 +60,8 @@ class TransferService:
             ozon_client = self.client_factory.get_client(Marketplace.OZON)
             ozon_credentials = self.connection_service.get_credentials(user_id, Marketplace.OZON)
 
-        # Convert CategoryNode list to plain dicts for LLM
-        target_categories_dicts = [{"id": c.id, "name": c.name} for c in target_categories]
+        # Convert leaf CategoryNode list to plain dicts for LLM (leaf = no children)
+        target_categories_dicts = [{"id": c.id, "name": c.name} for c in target_categories if not c.children]
 
         preview_items: list[TransferPreviewItem] = []
         for product_id in payload.product_ids:
@@ -138,7 +138,7 @@ class TransferService:
                 else:
                     brand_id_requires_manual = True
 
-                # 9.4: Check mediaFiles (WB→Ozon)
+                # 9.4: Check mediaFiles (WB→Ozon) — block transfer explicitly when no images
                 if not product.images:
                     warnings.append("У товара нет изображений. Перенос без фото невозможен.")
                     preview_items.append(
@@ -150,6 +150,7 @@ class TransferService:
                             category_requires_manual=category_requires_manual,
                             brand_id_suggestion=brand_id_suggestion,
                             brand_id_requires_manual=brand_id_requires_manual,
+                            missing_critical_fields=["images"],
                             warnings=warnings,
                         )
                     )
@@ -273,13 +274,8 @@ class TransferService:
         return int(scope) if isinstance(scope, int) else None
 
     async def launch(self, user_id: int, payload: TransferLaunchRequest) -> TransferJobResponse:
-        # 9.6: Check for manual fields without overrides before running preview
+        # 9.6: Run preview to get actual manual flags per item
         overrides = payload.product_overrides or {}
-        for product_id in payload.product_ids:
-            item_override = overrides.get(product_id)
-            # We run preview to get the actual manual flags
-            pass
-
         preview = await self.preview(user_id, payload)
 
         # 9.6: Check per-item manual flags with specific error messages

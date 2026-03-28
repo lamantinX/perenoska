@@ -475,16 +475,10 @@ def test_tc29_preview_requires_auth(tmp_path):
 # TC-37: list_categories вызывается ровно 1 раз при preview
 # ---------------------------------------------------------------------------
 
-def test_tc37_list_categories_called_once(tmp_path):
-    call_count = 0
-
-    class CountingOzonClient(FakeOzonClient):
-        async def list_categories(self, credentials, *, parent_id: int | None = None):
-            nonlocal call_count
-            call_count += 1
-            return await super().list_categories(credentials, parent_id=parent_id)
-
-    app = build_app(tmp_path, ozon_client=CountingOzonClient())
+def test_tc37_list_categories_called_once(tmp_path, mocker):
+    ozon_client = FakeOzonClient()
+    app = build_app(tmp_path, ozon_client=ozon_client)
+    spy = mocker.spy(ozon_client, "list_categories")
     client = TestClient(app)
     headers = auth_and_connect(client)
 
@@ -499,7 +493,7 @@ def test_tc37_list_categories_called_once(tmp_path):
         },
     )
     assert r.status_code == 200
-    assert call_count == 1, f"list_categories should be called once, got {call_count}"
+    assert spy.call_count == 1, f"list_categories should be called once, got {spy.call_count}"
 
 
 # ---------------------------------------------------------------------------

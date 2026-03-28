@@ -125,7 +125,8 @@ class ProductOverride(BaseModel):
     category_id: int | None = None
     brand_id: int | None = None
     price: str | None = None
-    attributes: list | None = None
+    # attributes override is reserved for future use; not applied in _apply_product_overrides yet
+    attributes: list[dict[str, Any]] | None = None
 
 
 class TransferPreviewItem(BaseModel):

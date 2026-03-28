@@ -105,8 +105,17 @@ class MappingService:
         2. Case-insensitive
         3. Substring
         Returns (brand_id, True) on any match, (None, False) otherwise.
+        Network or API errors are re-raised as MarketplaceAPIError so callers
+        can render them as 502 instead of letting them propagate as 500.
         """
-        brands = await ozon_client.list_brands(credentials, query=brand_name)
+        from app.clients.base import MarketplaceAPIError
+
+        try:
+            brands = await ozon_client.list_brands(credentials, query=brand_name)
+        except MarketplaceAPIError:
+            raise
+        except Exception as exc:
+            raise MarketplaceAPIError(str(exc)) from exc
 
         # Level 1: exact case-sensitive
         for entry in brands:
@@ -187,6 +196,7 @@ class MappingService:
             payload = {
                 "offer_id": self._sanitize_offer_id(source_product.offer_id or source_product.id),
                 "name": self._sanitize_ozon_name(source_product.title),
+                # ProductDetails.description maps to Ozon's "annotation" field (rich-text product description)
                 "annotation": source_product.description or "",
                 "description_category_id": target_category.id,
                 "type_id": int(resolved_type_id) if resolved_type_id else 0,
@@ -401,8 +411,6 @@ class MappingService:
     def _sanitize_offer_id(value: str) -> str:
         cleaned = re.sub(r"[^A-Za-z0-9._-]+", "-", value.strip())[:50]
         if cleaned[:1] in {"_", "-"}:
-            cleaned = f"SKU{cleaned}"[:50]
-        if cleaned[:3].startswith("_") or cleaned[:3].startswith("-"):
             cleaned = f"SKU{cleaned}"[:50]
         return cleaned or "SKU-ITEM"
 
