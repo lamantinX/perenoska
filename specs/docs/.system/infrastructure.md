@@ -1,10 +1,8 @@
 ---
-description: Инфраструктура MyApp — платформа, окружения, хранилища, сервисы.
+description: Инфраструктура Perenoska — платформа, окружения, хранилища, сервисы.
 standard: specs/.instructions/docs/infrastructure/standard-infrastructure.md
 standard-version: v1.1
 ---
-
-> **Это визуализация.** Содержание заполнено примером из стандарта (MyApp, 4 сервиса). При реальном использовании — заменить на данные проекта по [Сценарию 6](../../../specs/.instructions/docs/infrastructure/modify-infrastructure.md) (когда будет создан).
 
 # Инфраструктура
 
@@ -12,131 +10,107 @@ standard-version: v1.1
 
 Все команды определены в [Makefile](/Makefile) (SSOT). Полный список: `make help`.
 
-**Порядок запуска:** PostgreSQL и Redis стартуют первыми (healthcheck), затем сервисы. RabbitMQ стартует параллельно — сервисы с retry до подключения.
+**Порядок запуска (локально без Docker):**
+```bash
+python -m venv .venv && .venv/Scripts/activate
+pip install -e .[dev]
+cp .env.example .env   # заполнить APP_SECRET_KEY и OPENROUTER_API_KEY
+uvicorn app.main:app
+```
 
-**Переменные окружения:** скопировать `.env.example` → `.env`. Описание каждой переменной — в `.env.example`. Для dev-окружения `.env.example` содержит рабочие значения.
+**Порядок запуска (Docker):**
+```bash
+cp platform/docker/.env.example platform/docker/.env   # заполнить секреты
+docker compose -f platform/docker/docker-compose.yml up
+```
+
+**Переменные окружения:** скопировать `.env.example` → `.env` (локально) или `platform/docker/.env.example` → `platform/docker/.env` (Docker). Описание каждой переменной — в `platform/docker/.env.example`. Для dev-окружения `.env.example` содержит безопасные defaults.
 
 ## Сервисы и порты
 
 | Сервис | Хост (docker) | Хост (local) | Порт | URL | Healthcheck |
 |--------|--------------|-------------|------|-----|-------------|
-| auth | auth | localhost | 8001 | http://localhost:8001 | GET /health |
-| task | task | localhost | 8002 | http://localhost:8002 | GET /health |
-| notification | notification | localhost | 8003 | http://localhost:8003 | GET /health |
-| admin | admin | localhost | 8004 | http://localhost:8004 | GET /health |
-| gateway | gateway | localhost | 8000 | http://localhost:8000 | GET /health |
+| perenoska | perenoska | localhost | 8000 | http://localhost:8000 | GET /health |
 
-**Gateway** проксирует все запросы: `/api/v1/auth/*` → auth:8001, `/api/v1/tasks/*` → task:8002, и т.д.
+**Swagger UI:** http://localhost:8000/docs
+
+Порт хоста задаётся через `PERENOSKA_PORT` (default: 8000). Внутри контейнера сервис всегда слушает порт 8000.
 
 ## Хранилища
 
-### PostgreSQL (основное хранилище данных)
+### SQLite (основное хранилище данных)
 
 | Параметр | Значение (dev) | Env-переменная |
 |----------|---------------|----------------|
-| Хост | postgres | `POSTGRES_HOST` |
-| Порт | 5432 | `POSTGRES_PORT` |
-| База (auth) | myapp_auth | `AUTH_DB_NAME` |
-| База (task) | myapp_task | `TASK_DB_NAME` |
-| База (notification) | myapp_notification | `NOTIFICATION_DB_NAME` |
-| База (admin) | myapp_admin | `ADMIN_DB_NAME` |
-| Пользователь | myapp | `POSTGRES_USER` |
-| Пароль | из .env | `POSTGRES_PASSWORD` |
+| Путь (локально) | data/perenositsa.db | `APP_DATABASE_PATH` |
+| Путь (docker) | /app/data/perenositsa.db | `APP_DATABASE_PATH` |
 
-**Connection string:** `postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${*_DB_NAME}`
+**Connection string:** `sqlite:///${APP_DATABASE_PATH}`
 
-Каждый сервис имеет свою базу данных. Кросс-сервисные запросы запрещены — только через API.
+Данные в Docker хранятся в именованном volume `perenoska_data` (`/app/data`).
 
-### Redis (кэш и WS-соединения)
-
-| Параметр | Значение (dev) | Env-переменная |
-|----------|---------------|----------------|
-| Хост | redis | `REDIS_HOST` |
-| Порт | 6379 | `REDIS_PORT` |
-| База (notification) | 0 | `NOTIFICATION_REDIS_DB` |
-| База (auth sessions) | 1 | `AUTH_REDIS_DB` |
-
-**Connection string:** `redis://${REDIS_HOST}:${REDIS_PORT}/${*_REDIS_DB}`
+**4 таблицы:** `users`, `sessions`, `marketplace_connections`, `transfer_jobs`. Каждый метод открывает соединение отдельно (нет connection pool). Поля `payload_json`/`result_json` — JSON-строки, десериализуются при чтении.
 
 ## Message Broker
 
-### RabbitMQ (асинхронное взаимодействие между сервисами)
-
-| Параметр | Значение (dev) | Env-переменная |
-|----------|---------------|----------------|
-| URL | amqp://guest:guest@rabbitmq:5672 | `RABBITMQ_URL` |
-| Management UI | http://localhost:15672 (*недоступно в staging/prod*) | — |
-
-**Каналы:**
-
-| Канал | Тип | Издатели | Подписчики | Описание |
-|-------|-----|---------|------------|----------|
-| system.events | fanout exchange | auth, task, admin | notification | Системные события для уведомлений |
-
-**Формат сообщений** (общий формат для всех каналов):
-
-```json
-{
-  "event": "UserRegistered",
-  "timestamp": "ISO8601",
-  "source": "auth",
-  "data": { "...": "event-specific payload" }
-}
-```
+*Брокер сообщений не используется.*
 
 ## Service Discovery
 
-Сервисы находят друг друга через env-переменные с URL. В Docker — по имени контейнера, локально — localhost с портом.
+Perenoska — единственный сервис. Внешние зависимости (WB API, Ozon API, OpenRouter API) задаются через env-переменные.
 
 | Сервис-источник | Сервис-цель | Механизм | Значение (dev) | Env-переменная |
 |----------------|------------|----------|---------------|----------------|
-| task | auth | env var | http://auth:8001 | `AUTH_SERVICE_URL` |
-| notification | auth | env var | http://auth:8001 | `AUTH_SERVICE_URL` |
-| admin | auth | env var | http://auth:8001 | `AUTH_SERVICE_URL` |
-| gateway | auth | env var | http://auth:8001 | `AUTH_SERVICE_URL` |
-| gateway | task | env var | http://task:8002 | `TASK_SERVICE_URL` |
-| gateway | notification | env var | http://notification:8003 | `NOTIFICATION_SERVICE_URL` |
-| gateway | admin | env var | http://admin:8004 | `ADMIN_SERVICE_URL` |
+| perenoska | WB API | env var (локально) / hardcoded default (docker) | https://content-api.wildberries.ru | `WB_BASE_URL` (только .env.example корня; в docker-compose не прокинута) |
+| perenoska | Ozon API | env var (локально) / hardcoded default (docker) | https://api-seller.ozon.ru | `OZON_BASE_URL` (только .env.example корня; в docker-compose не прокинута) |
+| perenoska | OpenRouter API | hardcoded в container.py (docker env var опциональна) | https://openrouter.ai/api/v1 | `LLM_BASE_URL` (platform/docker/.env.example; захардкожен в container.py) |
 
 ## Окружения
 
-| Параметр | dev | staging | prod |
-|----------|-----|---------|------|
-| Реплики сервисов | 1 | 1 | 2-4 (auto-scale) |
-| PostgreSQL | Docker container | AWS RDS (shared) | AWS RDS (HA, Multi-AZ) |
-| Redis | Docker container | AWS ElastiCache | AWS ElastiCache (cluster) |
-| RabbitMQ | Docker container | AWS MQ | AWS MQ (HA) |
-| Секреты | .env файл | AWS Secrets Manager | AWS Secrets Manager |
-| Домен | localhost:8000 | staging.myapp.com | myapp.com |
-| TLS | нет | Let's Encrypt | ACM |
-| Логирование | stdout (docker logs) | CloudWatch | CloudWatch + alerts |
+| Параметр | dev | docker |
+|----------|-----|--------|
+| Реплики сервисов | 1 | 1 |
+| БД | data/perenositsa.db (local) | volume perenoska_data |
+| Секреты | .env файл | .env файл (platform/docker/) |
+| Домен | localhost:8000 | localhost:${PERENOSKA_PORT} |
+| TLS | нет | нет |
+| Логирование | stdout | stdout (docker logs perenoska) |
 
 ## Мониторинг и логи
 
-**Формат логов:** JSON structured
+**Формат логов:** текстовый stdout
 
 **Где смотреть:**
 
-| Окружение | Логи | Метрики |
-|-----------|------|---------|
-| dev | `docker-compose logs -f {svc}` | — |
-| staging | AWS CloudWatch → Log Group `/myapp/staging/{svc}` | CloudWatch Metrics |
-| prod | AWS CloudWatch → Log Group `/myapp/prod/{svc}` | CloudWatch Metrics + Grafana |
+| Окружение | Логи |
+|-----------|------|
+| dev | stdout (uvicorn консоль) |
+| docker | `docker compose -f platform/docker/docker-compose.yml logs -f perenoska` |
+
+**Healthcheck (docker-compose):**
+```
+test: python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
+interval: 30s
+timeout: 10s
+start_period: 15s
+retries: 3
+```
 
 **Стандарт логирования:** см. [conventions.md](./conventions.md) секция Логирование.
 
-**Alerting (prod):**
-- ERROR rate > 1% за 5 минут → Slack #alerts
-- Response time p99 > 2s → Slack #alerts
-- Healthcheck fail → PagerDuty
-
 ## Секреты
 
-**Правило:** секреты НИКОГДА не коммитятся. Только `.env.example` с пустыми значениями.
+**Правило:** секреты НИКОГДА не коммитятся. Только `.env.example` и `platform/docker/.env.example` с пустыми/безопасными значениями.
 
-| Секрет | Env-переменная | Источник (dev) | Источник (prod) |
-|--------|---------------|----------------|-----------------|
-| Пароль PostgreSQL | `POSTGRES_PASSWORD` | .env | AWS Secrets Manager |
-| JWT signing key | `JWT_SECRET_KEY` | .env | AWS Secrets Manager |
-| RabbitMQ credentials | `RABBITMQ_URL` | .env (guest:guest) | AWS Secrets Manager |
-| API keys внешних сервисов | `{SERVICE}_API_KEY` | .env | AWS Secrets Manager |
+| Секрет | Env-переменная | Источник (dev) | Обязательно |
+|--------|---------------|----------------|-------------|
+| Ключ шифрования Fernet для API-ключей в БД | `APP_SECRET_KEY` | .env | Да |
+| API-ключ OpenRouter для LLM-маппинга категорий | `OPENROUTER_API_KEY` | .env | Да (для preview) |
+| Путь к SQLite | `APP_DATABASE_PATH` | .env (optional) | Нет |
+| TTL сессии (часы) | `APP_SESSION_TTL_HOURS` | .env (optional, default 24) | Нет |
+| LLM-модель | `LLM_MODEL` | .env (optional, default mistralai/mistral-7b-instruct:free) | Нет |
+| Таймаут HTTP-запросов (сек) | `HTTP_TIMEOUT_SECONDS` | .env (optional, default 30) | Нет |
+| Базовый URL OpenRouter | `LLM_BASE_URL` | platform/docker/.env (optional) | Нет (захардкожен в container.py) |
+| Порт хоста perenoska (docker) | `PERENOSKA_PORT` | .env (optional, default 8000) | Нет |
+
+API-ключи маркетплейсов (WB token, Ozon client_id/api_key) хранятся в БД в зашифрованном виде (Fernet, ключ = `APP_SECRET_KEY`). В env не передаются.

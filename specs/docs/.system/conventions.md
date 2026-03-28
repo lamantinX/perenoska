@@ -4,52 +4,39 @@ standard: specs/.instructions/docs/conventions/standard-conventions.md
 standard-version: v1.1
 ---
 
-> **Это визуализация.** Содержание ниже (MyApp, FastAPI/Python, 4 сервиса) — пример из стандарта, демонстрирующий как будет выглядеть conventions.md в реальном проекте. При старте реального проекта заменить на актуальные данные.
-
 # Конвенции API
 
 ## Формат ответов
 
 Все API возвращают JSON. Content-Type: `application/json`.
 
-**Единичный объект:**
+**Единичный объект (пример — job):**
+```json
+{"job_id": "job-abc123", "status": "pending", "product_count": 1}
+```
+
+**Список с пагинацией (пример — бренды):**
 ```json
 {
-  "id": "550e8400-e29b-41d4-a716-446655440000",
-  "type": "system",
-  "title": "Welcome",
-  "status": "unread",
-  "created_at": "2026-03-01T12:00:00Z"
+  "items": [
+    {"id": 1000, "name": "Nike"},
+    {"id": 1001, "name": "Nike Sport"}
+  ],
+  "total": 2
 }
 ```
 
-**Список с пагинацией:**
-```json
-{
-  "items": [ { "...": "..." } ],
-  "total": 42,
-  "limit": 20,
-  "offset": 0
-}
-```
-
-**Даты:** ISO 8601 с timezone (`2026-03-01T12:00:00Z`). Хранение в TIMESTAMPTZ.
-
-**UUID:** Строка в формате `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`. Генерация: `gen_random_uuid()` на стороне БД.
+**Даты:** ISO 8601 с timezone (`2026-03-01T12:00:00Z`).
 
 ## Формат ошибок
 
-Все ошибки возвращаются в едином формате:
+Все ошибки возвращаются в едином формате через `detail`:
 
 ```json
 {
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "Field 'email' is required",
-    "details": {
-      "field": "email",
-      "constraint": "required"
-    }
+  "detail": {
+    "code": "WB_API_UNAVAILABLE",
+    "message": "WB API unavailable"
   }
 }
 ```
@@ -58,78 +45,59 @@ standard-version: v1.1
 
 | HTTP Status | Код | Когда |
 |-------------|-----|-------|
-| 400 | `BAD_REQUEST` | Некорректный формат запроса |
-| 401 | `UNAUTHORIZED` | Отсутствует или невалидный JWT |
-| 403 | `FORBIDDEN` | Нет прав (роль не позволяет) |
+| 400 | `TRANSFER_NOT_READY` | `ready_to_import=false`, перенос заблокирован |
+| 400 | *(без кода)* | marketplace != ozon (catalog/brands), нет credentials — FastAPI default 400 |
+| 401 | `UNAUTHORIZED` | Отсутствует или невалидный Bearer-токен |
 | 404 | `NOT_FOUND` | Ресурс не найден |
-| 409 | `CONFLICT` | Конфликт состояния (дубликат, race condition) |
-| 422 | `VALIDATION_ERROR` | Валидация полей не прошла |
-| 429 | `RATE_LIMITED` | Превышен лимит запросов |
-| 500 | `INTERNAL_ERROR` | Необработанная ошибка сервера |
+| 422 | `VALIDATION_ERROR` | Валидация полей Pydantic не прошла |
+| 502 | `WB_API_UNAVAILABLE` | Недоступен WB API (ConnectionError) |
+| 502 | `OZON_API_UNAVAILABLE` | Недоступен Ozon API (ConnectionError) |
 
 **Реализация в FastAPI:**
 ```python
 from fastapi import HTTPException
 
-class AppError(HTTPException):
-    def __init__(self, status: int, code: str, message: str, details: dict = None):
-        super().__init__(
-            status_code=status,
-            detail={"error": {"code": code, "message": message, "details": details or {}}}
-        )
-
-# Использование:
-raise AppError(404, "NOT_FOUND", f"Notification {id} not found")
-raise AppError(422, "VALIDATION_ERROR", "Invalid status", {"field": "status", "allowed": ["read", "unread"]})
+raise HTTPException(
+    status_code=502,
+    detail={"code": "WB_API_UNAVAILABLE", "message": "WB API unavailable"}
+)
 ```
 
 ## Пагинация
 
-Все списочные endpoint-ы принимают:
+Списочные endpoint-ы принимают:
 
 | Параметр | Тип | Default | Max | Описание |
 |----------|-----|---------|-----|----------|
+| q | str | — | — | Поисковый запрос (для брендов) |
 | limit | int | 20 | 100 | Количество записей на страницу |
-| offset | int | 0 | — | Смещение от начала |
 
-Ответ всегда содержит `items`, `total`, `limit`, `offset`.
+Ответ содержит `items` и `total`.
 
-**Реализация:**
+**Пример — `GET /api/v1/catalog/{marketplace}/brands`:**
 ```python
-from pydantic import BaseModel, Field
-
-class PaginationParams(BaseModel):
-    limit: int = Field(default=20, ge=1, le=100)
-    offset: int = Field(default=0, ge=0)
-
-class PaginatedResponse(BaseModel):
-    items: list
-    total: int
-    limit: int
-    offset: int
+@router.get("/catalog/{marketplace}/brands")
+async def list_brands(
+    marketplace: str,
+    q: str,
+    limit: int = Query(default=20, ge=1, le=100),
+    ...
+):
+    ...
 ```
 
 ## Аутентификация
 
-**Заголовок:** `Authorization: Bearer {JWT}`
+**Заголовок:** `Authorization: Bearer {token}`
 
-**Структура JWT claims:**
-```json
-{
-  "sub": "550e8400-e29b-41d4-a716-446655440000",
-  "role": "member",
-  "exp": 1740000000,
-  "iat": 1739913600
-}
-```
+**Тип токена:** `secrets.token_urlsafe(32)` (не JWT). Хранится в таблице `sessions` (SQLite).
 
-- `sub` — user_id (UUID)
-- `role` — одна из: `admin`, `manager`, `member`
-- Время жизни: 24 часа (access token)
+- Время жизни: `APP_SESSION_TTL_HOURS` (по умолчанию 24 часа)
+- Передаётся всеми endpoint-ами кроме публичных
 
-**Публичные endpoint-ы (без JWT):** `POST /auth/register`, `POST /auth/login`, `GET /health`.
+**Публичные endpoint-ы (без токена):** `POST /api/v1/auth/register`, `POST /api/v1/auth/login`
 
-Все остальные endpoint-ы требуют валидный JWT. Middleware shared/auth проверяет токен автоматически (см. [Shared-пакеты](#shared-пакеты)).
+**Все остальные endpoint-ы** требуют валидный Bearer-токен. Dependency `get_current_user` проверяет токен через `AuthService`.
 
 ## Версионирование API
 
@@ -143,147 +111,51 @@ class PaginatedResponse(BaseModel):
 
 ## Shared-пакеты
 
-Список пакетов (назначение, владелец, потребители) — в [overview.md](overview.md#shared-код).
-
-### shared/auth — JWT Middleware
-
-**Владелец:** auth
-
-**Интерфейс:**
-
-```python
-from shared.auth import require_auth, get_current_user, AuthUser
-
-@app.get("/api/v1/notifications")
-async def list_notifications(user: AuthUser = Depends(get_current_user)):
-    # user.id — UUID пользователя
-    # user.role — "admin" | "manager" | "member"
-    ...
-```
-
-**AuthUser:**
-
-| Поле | Тип | Описание |
-|------|-----|----------|
-| id | UUID | ID пользователя (из JWT sub) |
-| role | str | Роль: `admin`, `manager`, `member` |
-
-**Функции:**
-
-| Функция | Назначение | Вызывает ошибку |
-|---------|-----------|----------------|
-| `get_current_user` | FastAPI Dependency — извлекает AuthUser из JWT | 401 если токен невалидный/отсутствует |
-| `require_role(role)` | FastAPI Dependency — проверяет роль | 403 если роль не совпадает |
-
-**Пример с проверкой роли:**
-```python
-from shared.auth import require_role
-
-@app.delete("/api/v1/admin/users/{user_id}")
-async def delete_user(user_id: UUID, admin: AuthUser = Depends(require_role("admin"))):
-    ...
-```
-
-### shared/events — Схемы событий AMQP
-
-**Владелец:** auth (Identity-события), task (Task-события)
-
-**Интерфейс:**
-
-```python
-from shared.events import publish_event, UserRegistered, TaskCreated
-
-# Публикация события:
-await publish_event("system.events", UserRegistered(
-    user_id="550e8400-...",
-    email="user@example.com",
-    name="John"
-))
-```
-
-**Базовый класс:**
-
-```python
-class DomainEvent(TypedDict):
-    event: str          # Имя события (auto из класса)
-    timestamp: str      # ISO8601 (auto)
-    source: str         # Имя сервиса (auto из config)
-    data: dict          # Event-specific payload
-```
-
-**Доступные события:**
-
-| Событие | Источник | Поля data |
-|---------|---------|-----------|
-| `UserRegistered` | auth | `user_id`, `email`, `name` |
-| `PasswordChanged` | auth | `user_id` |
-| `TaskCreated` | task | `task_id`, `creator_id`, `title` |
-| `TaskAssigned` | task | `task_id`, `assignee_id`, `assigner_id` |
-| `AdminAction` | admin | `action`, `target_user_id`, `admin_id` |
-
-**Подписка на события:**
-```python
-from shared.events import subscribe, DomainEvent
-
-@subscribe("system.events")
-async def handle_event(event: DomainEvent):
-    match event["event"]:
-        case "UserRegistered":
-            await create_welcome_notification(event["data"]["user_id"])
-        case "TaskAssigned":
-            await create_assignment_notification(event["data"])
-```
+*Shared-пакеты будут добавлены при появлении переиспользуемого кода между сервисами.*
 
 ## Логирование
 
-Все сервисы используют structlog для структурированного логирования в JSON. Каждая log-запись автоматически обогащается контекстными полями (service, request_id), что позволяет трассировать запрос через цепочку сервисов в ELK.
-
-**Библиотека:** `structlog 24.x` — структурированные логи в JSON, автоматический context binding, интеграция с stdlib logging.
+Логирование через стандартный Python `logging`. Каждое значимое событие логируется на уровне INFO или ERROR.
 
 **Уровни:**
 
 | Уровень | Когда использовать | Пример |
-|---------|-------------------|--------|
-| DEBUG | Детали внутренней логики (не в production) | `Resolving notification template`, `Cache hit for user preferences` |
-| INFO | Бизнес-события, успешные операции | `Notification sent`, `User registered`, `Task assigned` |
-| WARNING | Восстановимые проблемы, degraded mode | `Redis unavailable, fallback to DB`, `Rate limit approaching` |
-| ERROR | Сбои, требующие внимания | `Failed to send email`, `Database connection lost` |
+|---------|-------------------|----|
+| INFO | Успешные операции: карточка создана, job запущен | `transfer.launched job_id=job-abc123` |
+| WARNING | Восстановимые проблемы: LLM вернул низкую уверенность, graceful degradation | `category.low_confidence product_id=12345678 confidence=0.45` |
+| ERROR | Сбои: недоступен WB/Ozon API, ошибка создания карточки | `wb_api.unavailable error=ConnectionError` |
 
 **Обязательные поля:**
 
 | Поле | Источник | Описание |
 |------|---------|----------|
-| `service` | Конфиг (auto) | Имя сервиса: `notification`, `auth`, `task` |
-| `request_id` | Middleware (auto) | UUID запроса для трассировки через сервисы |
-| `user_id` | Middleware (auto, если авторизован) | UUID пользователя из JWT |
-| `timestamp` | structlog (auto) | ISO 8601 |
-| `level` | structlog (auto) | DEBUG / INFO / WARNING / ERROR |
-
-**Запрещено логировать:** пароли, JWT-токены (полные), email-адреса, номера телефонов, IP-адреса пользователей, любые PII-данные. Для отладки использовать ID (user_id, notification_id), не данные.
+| `level` | logging (auto) | DEBUG / INFO / WARNING / ERROR |
+| `message` | код | Описание события в формате `{domain}.{action}` |
+| `job_id` / `product_id` | контекст запроса | ID объекта для трассировки (не данные пользователя) |
 
 **Базовый паттерн:**
 
 ```python
-import structlog
+import logging
 
-logger = structlog.get_logger()
+logger = logging.getLogger(__name__)
 
-# В handler / service:
-async def send_notification(user_id: str, type: str):
-    logger.info("notification.sending", user_id=user_id, type=type)
+# В сервисе:
+def launch_transfer(job_id: str, product_count: int):
+    logger.info("transfer.launching", extra={"job_id": job_id, "product_count": product_count})
     try:
-        result = await do_send(user_id, type)
-        logger.info("notification.sent", user_id=user_id, notification_id=result.id)
-    except DeliveryError as e:
-        logger.error("notification.send_failed", user_id=user_id, type=type, error=str(e))
+        result = do_launch(job_id)
+        logger.info("transfer.launched", extra={"job_id": job_id})
+    except MarketplaceAPIError as e:
+        logger.error("transfer.failed", extra={"job_id": job_id, "error": str(e)})
         raise
 ```
 
-**Именование событий:** `{domain}.{action}` в snake_case — `notification.sent`, `user.registered`, `task.assigned`, `auth.login_failed`.
+**Запрещено логировать:** пароли, API-ключи маркетплейсов (хранятся зашифрованными через Fernet), Bearer-токены сессий.
 
 ## Требования по уровням критичности
 
-Конвенции отказоустойчивости и логирования зависят от уровня критичности сервиса. Уровень определяется в `{svc}.md` (поле `criticality`).
+Конвенции отказоустойчивости и логирования зависят от уровня критичности сервиса. Уровень определяется в `{svc}.md` (поле `criticality`). Сервис `perenoska` имеет уровень `critical-high`.
 
 **Отказоустойчивость:**
 

@@ -368,10 +368,9 @@ app/services/container.py → app/security.py
 
 ## Planned Changes
 
-<!-- chain: 0002-wb-ozon-product-transfer -->
-- **[analysis/0002-wb-ozon-product-transfer](../analysis/0002-wb-ozon-product-transfer/)** — корректный маппинг полей WB↔Ozon (LLM-маппинг категорий, brand_id lookup, description→annotation). Затрагивает: § 2 API контракты, § 4 Потоки, § 5 Code Map, § 6 Зависимости, § 7 Доменная модель, § 8 Границы автономии LLM.
-<!-- /chain: 0002-wb-ozon-product-transfer -->
+*Нет запланированных изменений.*
 
 ## Changelog
 
+- **0002-wb-ozon-product-transfer** | DONE 2026-03-26 — корректный перенос карточек WB↔Ozon: LLM-маппинг категорий (OpenRouter), многошаговый поиск brand_id (Ozon API), description→annotation, GET /api/v1/catalog/{marketplace}/brands, TransferPreviewItem расширен (category_confidence, brand_id_suggestion, requires_manual-флаги).
 - **Создание сервиса** | DONE 2026-03-25 — первоначальная документация.
