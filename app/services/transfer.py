@@ -299,6 +299,14 @@ class TransferService:
                         "Передайте brand_id в product_overrides."
                     ),
                 )
+            if item.missing_critical_fields:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        f"Товар {item.product_id}: отсутствуют обязательные поля: "
+                        f"{', '.join(item.missing_critical_fields)}"
+                    ),
+                )
 
         if not preview.ready_to_import:
             raise HTTPException(
